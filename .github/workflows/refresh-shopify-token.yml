@@ -1,52 +1,49 @@
-name: Refresh Shopify Token
+name: Sync Shopify Data
 
 on:
   schedule:
-    # Run daily at 5 AM UTC (before the 6 AM sync)
-    - cron: '0 5 * * *'
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
-  refresh-token:
+  sync-shopify:
     runs-on: ubuntu-latest
     steps:
-      - name: Get new Shopify token
-        id: get-token
-        run: |
-          RESPONSE=$(curl -s -X POST "https://sugarloafsocialclub.myshopify.com/admin/oauth/access_token" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "grant_type=client_credentials&client_id=${{ secrets.SHOPIFY_CLIENT_ID }}&client_secret=${{ secrets.SHOPIFY_CLIENT_SECRET }}")
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-          TOKEN=$(echo $RESPONSE | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-          if [ -z "$TOKEN" ]; then
-            echo "Failed to get token. Response: $RESPONSE"
-            exit 1
-          fi
+      - name: Install dependencies
+        run: npm install pg
 
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-          echo "Got new token successfully"
+      - name: Sync Shopify data to Postgres
+        id: sync
+        env:
+          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
+          SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
+          POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+        run: node scripts/sync-shopify-analytics.js
 
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Remove old token from Vercel
+      - name: Update Shopify token in Vercel
         run: |
-          vercel env rm SHOPIFY_ACCESS_TOKEN production -y --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Add new token to Vercel
-        run: |
-          echo "${{ steps.get-token.outputs.token }}" | vercel env add SHOPIFY_ACCESS_TOKEN production --token=${{ secrets.VERCEL_TOKEN }}
+          # Remove old token (ignore if doesn't exist)
+          vercel env rm SHOPIFY_ACCESS_TOKEN production -y --token=${{ secrets.VERCEL_TOKEN }} || true
+          # Add new token
+          echo "${{ steps.sync.outputs.token }}" | vercel env add SHOPIFY_ACCESS_TOKEN production --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Trigger redeploy
-        run: |
-          vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
