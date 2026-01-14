@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Skins Game - Black Friday 2025</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .header {
+            background: #4C688E;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .logo {
+            max-width: 180px;
+            height: auto;
+        }
+
+        .hero-video {
+            background: #000;
+            padding: 60px 20px;
+            text-align: center;
+            min-height: 430px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-video h1 {
+            font-family: 'Fraunces', serif;
+            font-weight: 900;
+            color: #fff;
+            font-size: 3.5rem;
+            letter-spacing: 0.02em;
+        }
+
+        .video-container {
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .video-container iframe,
+        .video-container video {
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
+        }
+
+        .tagline {
+            background: #fff;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .tagline p {
+            max-width: 700px;
+            margin: 0 auto;
+            font-size: 1.25rem;
+            line-height: 1.8;
+            color: #333;
+        }
+
+        .event-details {
+            background: #fff;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .prime-logo {
+            max-width: 300px;
+            margin: 30px auto;
+            display: block;
+        }
+
+        .newsletter {
+            background: #4C688E;
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .newsletter h2 {
+            font-family: 'Fraunces', serif;
+            font-weight: 900;
+            color: #fff;
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            letter-spacing: 0.02em;
+        }
+
+        .newsletter p {
+            color: #fff;
+            margin-bottom: 35px;
+            font-size: 1.1rem;
+        }
+
+        .newsletter-form {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .newsletter-form input {
+            flex: 1;
+            min-width: 280px;
+            padding: 18px 25px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+        }
+
+        .newsletter-form button {
+            padding: 18px 45px;
+            background: #FFD639;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+            color: #333;
+        }
+
+        .newsletter-form button:hover {
+            transform: translateY(-2px);
+        }
+
+        .form-message {
+            margin-top: 20px;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .form-message.success {
+            color: #FFD639;
+        }
+
+        .form-message.error {
+            color: #ff6b6b;
+        }
+
+        /* Style Klaviyo embedded form */
+        .klaviyo-form-SwCkfS {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .klaviyo-form-SwCkfS input[type="email"] {
+            flex: 1;
+            min-width: 280px;
+            padding: 18px 25px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            margin-right: 15px;
+        }
+
+        .klaviyo-form-SwCkfS button[type="submit"],
+        .klaviyo-form-SwCkfS input[type="submit"] {
+            padding: 18px 45px !important;
+            background: #FFD639 !important;
+            border: none !important;
+            border-radius: 50px !important;
+            font-size: 1.1rem !important;
+            font-weight: 700 !important;
+            cursor: pointer;
+            transition: transform 0.2s;
+            color: #333 !important;
+        }
+
+        .klaviyo-form-SwCkfS button[type="submit"]:hover,
+        .klaviyo-form-SwCkfS input[type="submit"]:hover {
+            transform: translateY(-2px);
+        }
+
+        .klaviyo-form-SwCkfS form {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .player-cards {
+            background: #fff;
+            padding: 60px 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+        }
+
+        .cards-scroll {
+            display: flex;
+            gap: 20px;
+            animation: scroll 30s linear infinite;
+            width: fit-content;
+        }
+
+        .card {
+            min-width: 400px;
+            height: 550px;
+            background: #2a3d5a;
+            border-radius: 10px;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+        }
+
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .hero-image {
+            position: relative;
+            height: 600px;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hero-overlay {
+            text-align: center;
+            z-index: 10;
+            padding: 20px;
+        }
+
+        .hero-overlay .logo-large {
+            max-width: 400px;
+            margin-bottom: 40px;
+            filter: drop-shadow(0 4px 30px rgba(0,0,0,0.7));
+        }
+
+        .hero-overlay h2 {
+            font-family: 'Fraunces', serif;
+            font-weight: 900;
+            color: #fff;
+            font-size: 3rem;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.7);
+            letter-spacing: 0.02em;
+        }
+
+        .footer {
+            background: #1a1a1a;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 25px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .social-links a {
+            color: #fff;
+            font-size: 1.5rem;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+
+        .social-links a:hover {
+            opacity: 0.7;
+        }
+
+        .social-links img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .footer-links {
+            margin-top: 20px;
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .footer-links a {
+            color: #999;
+            text-decoration: none;
+            transition: color 0.3s;
+            margin: 0 10px;
+        }
+
+        .footer-links a:hover {
+            color: #FFD639;
+        }
+
+        .footer-links span {
+            margin: 0 5px;
+        }
+
+        @media (max-width: 768px) {
+            .hero-video h1 {
+                font-size: 2.5rem;
+            }
+            
+            .video-container iframe,
+            .video-container video {
+                height: 300px;
+            }
+            
+            .newsletter h2 {
+                font-size: 2rem;
+            }
+            
+            .hero-overlay h2 {
+                font-size: 2rem;
+            }
+            
+            .hero-overlay .logo-large {
+                max-width: 250px;
+            }
+            
+            .newsletter-form {
+                flex-direction: column;
+            }
+            
+            .newsletter-form input,
+            .newsletter-form button {
+                width: 100%;
+            }
+
+            .card {
+                min-width: 250px;
+                height: 380px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <img src="Skins Logo.png" alt="The Skins Game" class="logo">
+    </header>
+
+    <section class="hero-video">
+        <div class="video-container">
+            <video controls>
+                <source src="SkinsGame_SocialTrailer_PS_100625.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </section>
+
+    <section class="tagline">
+        <p>The Skins Game is back. Featuring your favorite PGA TOUR players battling it out for cold hard cash. Real competition. Real stakes.</p>
+    </section>
+
+    <section class="event-details">
+        <img src="skins-game_prime_lockup.png" alt="Black Friday at Panther National - Prime Video" class="prime-logo">
+    </section>
+
+    <section class="newsletter">
+        <h2>SUBSCRIBE TO THE NEWSLETTER</h2>
+        <p>For event information, archival content, and more.</p>
+        <div class="klaviyo-form-XpTGAu"></div>
+    </section>
+
+    <section class="player-cards">
+        <div class="cards-scroll">
+            <div class="card" style="background-image: url('SKINS-Xander.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-Tommy.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-Keegan.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-JT.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-Xander.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-Tommy.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-Keegan.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-JT.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-Xander.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-Tommy.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-Keegan.jpg');"></div>
+            <div class="card" style="background-image: url('SKINS-JT.jpg');"></div>
+        </div>
+    </section>
+
+    <section class="hero-image" style="background-image: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.35)), url('Panther-National7_DSC01601.jpg');">
+        <div class="hero-overlay">
+            <img src="Skins Logo.png" alt="The Skins Game" class="logo-large">
+            <h2>BLACK FRIDAY 2025</h2>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="social-links">
+            <a href="https://www.instagram.com/officialskinsgame" target="_blank" aria-label="Instagram">
+                <img src="instagram.png" alt="Instagram">
+            </a>
+            <a href="https://x.com/the_skins_game" target="_blank" aria-label="X">
+                <img src="twitter.png" alt="X">
+            </a>
+            <a href="https://www.tiktok.com/@officialskinsgame" target="_blank" aria-label="TikTok">
+                <img src="tiktok.png" alt="TikTok">
+            </a>
+        </div>
+        <div class="footer-links">
+            <a href="https://www.skratch.golf/privacy-policy" target="_blank">Privacy Policy</a>
+            <span>|</span>
+            <a href="https://www.skratch.golf/terms-conditions" target="_blank">Terms of Service</a>
+        </div>
+    </footer>
+
+    <script async type="text/javascript" src="https://static.klaviyo.com/onsite/js/klaviyo.js?company_id=RY7xNN"></script>
+    
+    <script>
+        // Force Klaviyo to load the form
+        if (window._klOnsite) {
+            window._klOnsite.push(['openForm', 'XpTGAu']);
+        }
+    </script>
+</body>
+</html>
