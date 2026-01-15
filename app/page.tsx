@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { PeriodSelector, Period } from '@/components/dashboard/period-selector';
+import { DateRangeSelector, DateRange, getDefaultDateRange } from '@/components/dashboard/date-range-selector';
 import { ShopifySection } from '@/components/dashboard/shopify-section';
 import { AdSpendSection } from '@/components/dashboard/ad-spend-section';
 import { TopProductsTable } from '@/components/dashboard/top-products-table';
@@ -53,7 +53,7 @@ interface ApiResponse {
 }
 
 export default function Dashboard() {
-  const [period, setPeriod] = useState<Period>('daily');
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +64,9 @@ export default function Dashboard() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/metrics?period=${period}`);
+      const response = await fetch(
+        `/api/metrics?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`
+      );
       const data: ApiResponse = await response.json();
 
       if (!response.ok) {
@@ -78,7 +80,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [dateRange]);
 
   useEffect(() => {
     fetchMetrics();
@@ -101,7 +103,7 @@ export default function Dashboard() {
               )}
             </div>
             <div className="flex items-center gap-4">
-              <PeriodSelector value={period} onChange={setPeriod} />
+              <DateRangeSelector value={dateRange} onChange={setDateRange} />
               <Button onClick={fetchMetrics} disabled={loading} variant="outline">
                 {loading ? 'Loading...' : 'Refresh'}
               </Button>
