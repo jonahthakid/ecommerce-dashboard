@@ -1,5 +1,39 @@
-const SNAPCHAT_ACCESS_TOKEN = process.env.SNAPCHAT_ACCESS_TOKEN!;
+const SNAPCHAT_CLIENT_ID = process.env.SNAPCHAT_CLIENT_ID!;
+const SNAPCHAT_CLIENT_SECRET = process.env.SNAPCHAT_CLIENT_SECRET!;
+const SNAPCHAT_REFRESH_TOKEN = process.env.SNAPCHAT_REFRESH_TOKEN!;
 const SNAPCHAT_AD_ACCOUNT_ID = process.env.SNAPCHAT_AD_ACCOUNT_ID!;
+
+let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+
+async function getAccessToken(): Promise<string> {
+  // Check if we have a valid cached token (with 60s buffer)
+  if (cachedAccessToken && Date.now() < cachedAccessToken.expiresAt - 60000) {
+    return cachedAccessToken.token;
+  }
+
+  const response = await fetch('https://accounts.snapchat.com/login/oauth2/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: SNAPCHAT_CLIENT_ID,
+      client_secret: SNAPCHAT_CLIENT_SECRET,
+      refresh_token: SNAPCHAT_REFRESH_TOKEN,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to refresh Snapchat access token: ${response.status}`);
+  }
+
+  const data = await response.json();
+  cachedAccessToken = {
+    token: data.access_token,
+    expiresAt: Date.now() + data.expires_in * 1000,
+  };
+
+  return cachedAccessToken.token;
+}
 
 interface SnapchatStatsResponse {
   total_stats: Array<{
@@ -11,9 +45,11 @@ interface SnapchatStatsResponse {
 }
 
 async function snapchatFetch<T>(endpoint: string): Promise<T> {
+  const accessToken = await getAccessToken();
+
   const response = await fetch(`https://adsapi.snapchat.com/v1/${endpoint}`, {
     headers: {
-      Authorization: `Bearer ${SNAPCHAT_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
   });
