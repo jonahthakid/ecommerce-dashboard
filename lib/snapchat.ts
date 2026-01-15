@@ -64,9 +64,14 @@ async function snapchatFetch<T>(endpoint: string): Promise<T> {
 
 export async function getDailyMetrics(date: string) {
   try {
-    // Snapchat uses ISO timestamps
+    // Snapchat requires end time at the start of an hour
+    // Use start of day to start of next day
     const startTime = `${date}T00:00:00.000-00:00`;
-    const endTime = `${date}T23:59:59.999-00:00`;
+    // Calculate next day for end time
+    const dateObj = new Date(date);
+    dateObj.setDate(dateObj.getDate() + 1);
+    const nextDay = dateObj.toISOString().split('T')[0];
+    const endTime = `${nextDay}T00:00:00.000-00:00`;
 
     const data = await snapchatFetch<SnapchatStatsResponse>(
       `adaccounts/${SNAPCHAT_AD_ACCOUNT_ID}/stats?granularity=DAY&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&fields=spend,total_purchases_value`
