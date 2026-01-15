@@ -74,7 +74,7 @@ export async function getDailyMetrics(date: string) {
     const endTime = `${nextDay}T00:00:00.000-00:00`;
 
     const data = await snapchatFetch<SnapchatStatsResponse>(
-      `adaccounts/${SNAPCHAT_AD_ACCOUNT_ID}/stats?granularity=DAY&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&fields=spend,total_purchases_value`
+      `adaccounts/${SNAPCHAT_AD_ACCOUNT_ID}/stats?granularity=DAY&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&fields=spend`
     );
 
     if (!data.total_stats || data.total_stats.length === 0) {
