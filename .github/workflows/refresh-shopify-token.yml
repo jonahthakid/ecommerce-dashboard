@@ -19,14 +19,16 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install pg
+        run: npm install pg @google-analytics/data
 
-      - name: Sync Shopify data to Postgres
+      - name: Sync Shopify + GA4 data to Postgres
         id: sync
         env:
           SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
           SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
           POSTGRES_URL: ${{ secrets.POSTGRES_URL }}
+          GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
+          GA4_CREDENTIALS: ${{ secrets.GA4_CREDENTIALS }}
         run: node scripts/sync-shopify-analytics.js
 
       - name: Install Vercel CLI

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Sync Shopify Analytics from GitHub Action
- * This script runs from GitHub's servers (not blocked by Shopify)
- * and writes directly to the Postgres database.
+ * Sync Shopify + GA4 Analytics from GitHub Action
+ * - Shopify: orders, revenue, products, new customers
+ * - GA4: traffic (sessions, visitors)
  */
 
 const https = require('https');
@@ -11,6 +11,8 @@ const SHOPIFY_STORE_DOMAIN = 'sugarloafsocialclub.myshopify.com';
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
 const POSTGRES_URL = process.env.POSTGRES_URL;
+const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID;
+const GA4_CREDENTIALS = process.env.GA4_CREDENTIALS;
 
 // Simple fetch wrapper using https
 function fetch(url, options = {}) {
@@ -94,85 +96,6 @@ async function getOrdersForDate(accessToken, date) {
   return data.orders || [];
 }
 
-// Try to fetch traffic data from ShopifyQL
-async function getTrafficForDate(accessToken, date) {
-  const query = `
-    FROM sessions
-    SHOW total_sessions, total_visitors
-    WHERE session_date = '${date}'
-    SINCE ${date}
-    UNTIL ${date}
-  `;
-
-  try {
-    const response = await fetch(
-      `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/graphql.json`,
-      {
-        method: 'POST',
-        headers: {
-          'X-Shopify-Access-Token': accessToken,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: `
-            query {
-              shopifyqlQuery(query: "${query.replace(/\n/g, ' ').replace(/"/g, '\\"')}") {
-                tableData {
-                  rowData
-                  columns {
-                    name
-                    dataType
-                  }
-                }
-                parseErrors {
-                  message
-                }
-              }
-            }
-          `,
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      console.log('Analytics API returned non-OK status:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-
-    if (data.errors || data.data?.shopifyqlQuery?.parseErrors?.length > 0) {
-      console.log('ShopifyQL errors:', JSON.stringify(data.errors || data.data?.shopifyqlQuery?.parseErrors));
-      return null;
-    }
-
-    const tableData = data.data?.shopifyqlQuery?.tableData;
-    if (!tableData || !tableData.rowData || tableData.rowData.length === 0) {
-      return null;
-    }
-
-    const row = tableData.rowData[0];
-    const columns = tableData.columns;
-
-    let sessions = 0;
-    let visitors = 0;
-
-    columns.forEach((col, index) => {
-      if (col.name === 'total_sessions') {
-        sessions = parseInt(row[index]) || 0;
-      } else if (col.name === 'total_visitors') {
-        visitors = parseInt(row[index]) || 0;
-      }
-    });
-
-    console.log(`Got real analytics for ${date}: ${sessions} sessions, ${visitors} visitors`);
-    return { sessions, visitors };
-  } catch (error) {
-    console.log('Error fetching analytics:', error.message);
-    return null;
-  }
-}
-
 // Fetch products for inventory data
 async function getProducts(accessToken) {
   const response = await fetch(
@@ -193,12 +116,67 @@ async function getProducts(accessToken) {
   return data.products || [];
 }
 
+// Fetch traffic from GA4
+async function getGA4TrafficForDates(dates) {
+  if (!GA4_PROPERTY_ID || !GA4_CREDENTIALS) {
+    console.log('GA4 credentials not configured, will estimate traffic');
+    return {};
+  }
+
+  console.log('Fetching traffic data from GA4...');
+
+  try {
+    const { BetaAnalyticsDataClient } = require('@google-analytics/data');
+    const credentials = JSON.parse(GA4_CREDENTIALS);
+
+    const client = new BetaAnalyticsDataClient({
+      credentials: {
+        client_email: credentials.client_email,
+        private_key: credentials.private_key,
+      },
+      projectId: credentials.project_id,
+    });
+
+    const startDate = dates[dates.length - 1]; // oldest
+    const endDate = dates[0]; // newest
+
+    const [response] = await client.runReport({
+      property: `properties/${GA4_PROPERTY_ID}`,
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'date' }],
+      metrics: [
+        { name: 'sessions' },
+        { name: 'totalUsers' },
+      ],
+    });
+
+    const trafficByDate = {};
+
+    if (response.rows) {
+      for (const row of response.rows) {
+        const dateStr = row.dimensionValues?.[0]?.value || '';
+        // GA4 returns date as YYYYMMDD, convert to YYYY-MM-DD
+        const formattedDate = `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+        trafficByDate[formattedDate] = {
+          sessions: parseInt(row.metricValues?.[0]?.value || '0', 10),
+          visitors: parseInt(row.metricValues?.[1]?.value || '0', 10),
+        };
+      }
+    }
+
+    console.log(`Got GA4 traffic for ${Object.keys(trafficByDate).length} days`);
+    return trafficByDate;
+  } catch (error) {
+    console.error('Error fetching GA4 data:', error.message);
+    return {};
+  }
+}
+
 // Calculate metrics for a date
-async function getDailyMetrics(accessToken, date) {
-  const [orders, products, trafficData] = await Promise.all([
+async function getDailyMetrics(accessToken, date, ga4Traffic) {
+  const [orders, products] = await Promise.all([
     getOrdersForDate(accessToken, date),
     getProducts(accessToken),
-    getTrafficForDate(accessToken, date),
   ]);
 
   const totalOrders = orders.length;
@@ -245,7 +223,8 @@ async function getDailyMetrics(accessToken, date) {
       };
     });
 
-  // Use real traffic if available, otherwise estimate
+  // Use GA4 traffic if available, otherwise estimate from orders
+  const trafficData = ga4Traffic[date];
   const traffic = trafficData?.sessions > 0
     ? trafficData.sessions
     : (totalOrders > 0 ? Math.round(totalOrders / 0.02) : 0);
@@ -266,7 +245,6 @@ async function getDailyMetrics(accessToken, date) {
 
 // Simple Postgres query function
 async function pgQuery(connectionString, query, values = []) {
-  const url = new URL(connectionString);
   const { Pool } = require('pg');
 
   const pool = new Pool({
@@ -284,7 +262,7 @@ async function pgQuery(connectionString, query, values = []) {
 
 // Main sync function
 async function syncShopifyData() {
-  console.log('Starting Shopify sync from GitHub Action...\n');
+  console.log('Starting Shopify + GA4 sync from GitHub Action...\n');
 
   if (!SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET) {
     throw new Error('Missing SHOPIFY_CLIENT_ID or SHOPIFY_CLIENT_SECRET');
@@ -297,7 +275,7 @@ async function syncShopifyData() {
   // Get fresh access token
   const accessToken = await getAccessToken();
 
-  // Get today and yesterday's dates
+  // Get dates to sync (last 7 days)
   const today = new Date();
   const dates = [];
   for (let i = 0; i < 7; i++) {
@@ -308,15 +286,18 @@ async function syncShopifyData() {
 
   console.log(`\nSyncing data for dates: ${dates.join(', ')}\n`);
 
+  // Fetch GA4 traffic for all dates at once
+  const ga4Traffic = await getGA4TrafficForDates(dates);
+
   // Process each date
   for (const date of dates) {
     console.log(`\n--- Processing ${date} ---`);
 
     try {
-      const metrics = await getDailyMetrics(accessToken, date);
+      const metrics = await getDailyMetrics(accessToken, date, ga4Traffic);
 
       console.log(`Orders: ${metrics.orders}, Revenue: $${metrics.revenue.toFixed(2)}`);
-      console.log(`Traffic: ${metrics.traffic}${metrics.has_real_traffic ? ' (real)' : ' (estimated)'}`);
+      console.log(`Traffic: ${metrics.traffic}${metrics.has_real_traffic ? ' (GA4)' : ' (estimated)'}`);
       console.log(`Conversion: ${metrics.conversion_rate.toFixed(2)}%`);
       console.log(`New customers: ${metrics.new_customer_orders}`);
       console.log(`Top products: ${metrics.topProducts.length}`);
