@@ -36,10 +36,14 @@ async function getAccessToken(): Promise<string> {
 }
 
 interface SnapchatStatsResponse {
-  total_stats: Array<{
-    total_stat: {
-      spend: number;
-      total_purchases_value?: number;
+  request_status: string;
+  timeseries_stats?: Array<{
+    timeseries_stat: {
+      timeseries: Array<{
+        stats: {
+          spend?: number;
+        };
+      }>;
     };
   }>;
 }
@@ -64,20 +68,19 @@ async function snapchatFetch<T>(endpoint: string): Promise<T> {
 
 export async function getDailyMetrics(date: string) {
   try {
-    // Snapchat requires end time at the start of an hour
-    // Use start of day to start of next day
-    const startTime = `${date}T00:00:00.000-00:00`;
+    // Snapchat requires times in account timezone (America/Los_Angeles = PST -08:00)
+    const startTime = `${date}T00:00:00.000-08:00`;
     // Calculate next day for end time
     const dateObj = new Date(date);
     dateObj.setDate(dateObj.getDate() + 1);
     const nextDay = dateObj.toISOString().split('T')[0];
-    const endTime = `${nextDay}T00:00:00.000-00:00`;
+    const endTime = `${nextDay}T00:00:00.000-08:00`;
 
     const data = await snapchatFetch<SnapchatStatsResponse>(
       `adaccounts/${SNAPCHAT_AD_ACCOUNT_ID}/stats?granularity=DAY&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&fields=spend`
     );
 
-    if (!data.total_stats || data.total_stats.length === 0) {
+    if (!data.timeseries_stats || data.timeseries_stats.length === 0) {
       return {
         date,
         platform: 'snapchat' as const,
@@ -86,17 +89,24 @@ export async function getDailyMetrics(date: string) {
       };
     }
 
-    const stats = data.total_stats[0].total_stat;
+    const timeseries = data.timeseries_stats[0]?.timeseries_stat?.timeseries;
+    if (!timeseries || timeseries.length === 0) {
+      return {
+        date,
+        platform: 'snapchat' as const,
+        spend: 0,
+        roas: 0,
+      };
+    }
+
     // Snapchat spend is in micros (millionths of currency)
-    const spend = (stats.spend || 0) / 1_000_000;
-    const purchaseValue = stats.total_purchases_value || 0;
-    const roas = spend > 0 ? purchaseValue / spend : 0;
+    const spend = (timeseries[0].stats.spend || 0) / 1_000_000;
 
     return {
       date,
       platform: 'snapchat' as const,
       spend,
-      roas,
+      roas: 0, // ROAS not available at account level
     };
   } catch (error) {
     console.error('Snapchat API error:', error);
