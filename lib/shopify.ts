@@ -1,4 +1,5 @@
 import { sql } from '@vercel/postgres';
+import { getTrafficForDate as getGA4Traffic } from './ga4';
 
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
@@ -226,10 +227,11 @@ export async function getTrafficForDate(date: string): Promise<{ sessions: numbe
 }
 
 export async function getDailyMetrics(date: string) {
-  const [orders, products, trafficData] = await Promise.all([
+  const [orders, products, shopifyTraffic, ga4Traffic] = await Promise.all([
     getOrdersForDate(date),
     getProducts(),
     getTrafficForDate(date),
+    getGA4Traffic(date).catch(() => ({ sessions: 0, visitors: 0 })),
   ]);
 
   // Calculate metrics
@@ -282,10 +284,16 @@ export async function getDailyMetrics(date: string) {
       };
     });
 
-  // Use real traffic data from Shopify Analytics if available, otherwise estimate
-  const traffic = trafficData.sessions > 0
-    ? trafficData.sessions
-    : (totalOrders > 0 ? Math.round(totalOrders / 0.02) : 0);
+  // Use GA4 traffic first, then Shopify Analytics, then estimate as last resort
+  let traffic = 0;
+  if (ga4Traffic.sessions > 0) {
+    traffic = ga4Traffic.sessions;
+  } else if (shopifyTraffic.sessions > 0) {
+    traffic = shopifyTraffic.sessions;
+  } else if (totalOrders > 0) {
+    // Fallback estimate only if no real data available
+    traffic = Math.round(totalOrders / 0.02);
+  }
 
   const conversionRate = traffic > 0 ? (totalOrders / traffic) * 100 : 0;
 
