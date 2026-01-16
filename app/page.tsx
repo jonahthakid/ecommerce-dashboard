@@ -7,6 +7,7 @@ import { ShopifySection } from '@/components/dashboard/shopify-section';
 import { AdSpendSection } from '@/components/dashboard/ad-spend-section';
 import { TopProductsTable } from '@/components/dashboard/top-products-table';
 import { TrendChart } from '@/components/dashboard/trend-chart';
+import { RefreshCw } from 'lucide-react';
 
 interface Metrics {
   shopify: {
@@ -86,44 +87,68 @@ export default function Dashboard() {
     fetchMetrics();
   }, [fetchMetrics]);
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="border-b bg-white dark:bg-gray-800 dark:border-gray-700">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                E-Commerce Dashboard
-              </h1>
-              {lastUpdated && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Last updated: {lastUpdated.toLocaleTimeString()}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              <DateRangeSelector value={dateRange} onChange={setDateRange} />
-              <Button onClick={fetchMetrics} disabled={loading} variant="outline">
-                {loading ? 'Loading...' : 'Refresh'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+  const getTimeSinceUpdate = () => {
+    if (!lastUpdated) return null;
+    const seconds = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}m ago`;
+  };
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {error ? (
-          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 text-red-600 dark:text-red-400 mb-8">
-            <p className="font-medium">Error loading metrics</p>
-            <p className="text-sm">{error}</p>
+  return (
+    <div className="min-h-screen bg-[#0f172a] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0f172a] to-black text-slate-200 selection:bg-cyan-500/30 pb-20">
+      {/* Ambient Background Glows */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-500/20 rounded-full blur-3xl opacity-40 mix-blend-screen" />
+        <div className="absolute top-[20%] right-[-10%] w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl opacity-40 mix-blend-screen" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] opacity-30" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-6 py-10 space-y-8">
+        {/* Header */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
+              Dashboard
+            </h1>
+            <p className="text-slate-400 mt-1">
+              {dateRange.label} &middot; {dateRange.startDate} - {dateRange.endDate}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {lastUpdated && (
+              <span className="text-xs font-mono text-slate-500 hidden md:block">
+                Synced {getTimeSinceUpdate()}
+              </span>
+            )}
+            <DateRangeSelector value={dateRange} onChange={setDateRange} />
+            <button
+              onClick={fetchMetrics}
+              disabled={loading}
+              className="px-4 py-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all font-medium text-sm flex items-center gap-2 group disabled:opacity-50"
+            >
+              <RefreshCw
+                size={16}
+                className={`${loading ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-500`}
+              />
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+        </header>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="glass-card p-4 border-rose-500/30 bg-rose-500/10">
+            <p className="font-medium text-rose-400">Error loading metrics</p>
+            <p className="text-sm text-rose-300/70">{error}</p>
             <Button onClick={fetchMetrics} variant="outline" size="sm" className="mt-2">
               Try Again
             </Button>
           </div>
-        ) : null}
+        )}
 
+        {/* Main Content */}
         <div className="space-y-8">
           {/* Shopify Metrics */}
           <ShopifySection
@@ -152,16 +177,14 @@ export default function Dashboard() {
             />
           </div>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t bg-white dark:bg-gray-800 dark:border-gray-700 mt-8">
-        <div className="container mx-auto px-4 py-4">
-          <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-            Data synced every 6 hours. Manual refresh available above.
+        {/* Footer */}
+        <footer className="pt-8 border-t border-white/5">
+          <p className="text-sm text-slate-500 text-center">
+            Data synced every 6 hours via Vercel Cron. Manual refresh available above.
           </p>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }

@@ -14,7 +14,6 @@ import {
   startOfQuarter,
   endOfQuarter,
 } from 'date-fns';
-import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverContent,
@@ -141,16 +140,19 @@ export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
-          <CalendarIcon className="mr-2 h-4 w-4" />
+        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-sm font-medium text-slate-300">
+          <CalendarIcon className="h-4 w-4 text-slate-400" />
           <span>{displayText}</span>
-        </Button>
+        </button>
       </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-4" align="start">
+      <PopoverContent
+        className="w-[320px] p-4 bg-slate-900/95 backdrop-blur-xl border-white/10"
+        align="end"
+      >
         <div className="space-y-4">
           {/* Quick ranges */}
           <div>
-            <h4 className="mb-2 text-sm font-medium text-muted-foreground">Quick</h4>
+            <h4 className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Quick</h4>
             <div className="flex flex-wrap gap-2">
               <PresetButton
                 label="Today"
@@ -182,7 +184,7 @@ export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
 
           {/* Week ranges */}
           <div>
-            <h4 className="mb-2 text-sm font-medium text-muted-foreground">Weeks</h4>
+            <h4 className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Weeks</h4>
             <div className="flex flex-wrap gap-2">
               <PresetButton
                 label="This week"
@@ -199,7 +201,7 @@ export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
 
           {/* Month ranges */}
           <div>
-            <h4 className="mb-2 text-sm font-medium text-muted-foreground">Months</h4>
+            <h4 className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Months</h4>
             <div className="flex flex-wrap gap-2">
               <PresetButton
                 label="Month to date"
@@ -216,7 +218,7 @@ export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
 
           {/* Quarter ranges */}
           <div>
-            <h4 className="mb-2 text-sm font-medium text-muted-foreground">Quarters</h4>
+            <h4 className="mb-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Quarters</h4>
             <div className="flex flex-wrap gap-2">
               <PresetButton
                 label="Quarter to date"
@@ -246,13 +248,15 @@ function PresetButton({
   onClick: () => void;
 }) {
   return (
-    <Button
-      variant={selected ? 'default' : 'outline'}
-      size="sm"
+    <button
       onClick={onClick}
-      className="h-8"
+      className={`px-3 py-1.5 text-sm rounded-lg border transition-all ${
+        selected
+          ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+          : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-white'
+      }`}
     >
       {label}
-    </Button>
+    </button>
   );
 }
