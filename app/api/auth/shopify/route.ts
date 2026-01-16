@@ -5,7 +5,8 @@ const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://ecommerce-dashboard-lyart-iota.vercel.app';
 
 const SCOPES = [
-  'read_all_orders',  // Changed from read_orders to access historical orders
+  'read_orders',
+  'read_all_orders',  // For historical orders beyond 60 days
   'read_products',
   'read_inventory',
   'read_analytics',
