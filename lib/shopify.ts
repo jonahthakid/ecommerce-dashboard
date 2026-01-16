@@ -88,6 +88,14 @@ interface ShopifyOrder {
   id: string;
   created_at: string;
   total_price: string;
+  subtotal_price: string;
+  total_discounts: string;
+  total_tax: string;
+  refunds?: Array<{
+    transactions?: Array<{
+      amount: string;
+    }>;
+  }>;
   customer: {
     id: string;
     orders_count?: number;
@@ -129,14 +137,52 @@ async function shopifyFetch<T>(endpoint: string, options?: RequestInit): Promise
 }
 
 export async function getOrdersForDate(date: string): Promise<ShopifyOrder[]> {
-  const startOfDay = `${date}T00:00:00-00:00`;
-  const endOfDay = `${date}T23:59:59-00:00`;
+  // Use store's local timezone (EST = -05:00)
+  const startOfDay = `${date}T00:00:00-05:00`;
+  const endOfDay = `${date}T23:59:59-05:00`;
 
-  const data = await shopifyFetch<{ orders: ShopifyOrder[] }>(
-    `orders.json?status=any&created_at_min=${startOfDay}&created_at_max=${endOfDay}&limit=250`
-  );
+  const allOrders: ShopifyOrder[] = [];
+  let pageInfo: string | null = null;
+  let hasNextPage = true;
 
-  return data.orders;
+  while (hasNextPage) {
+    let endpoint: string;
+    if (pageInfo) {
+      endpoint = `orders.json?limit=250&page_info=${pageInfo}`;
+    } else {
+      endpoint = `orders.json?status=any&created_at_min=${startOfDay}&created_at_max=${endOfDay}&limit=250`;
+    }
+
+    const accessToken = await getAccessToken();
+    const response = await fetch(
+      `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/${endpoint}`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Shopify API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    allOrders.push(...data.orders);
+
+    // Check for pagination via Link header
+    const linkHeader = response.headers.get('Link');
+    if (linkHeader && linkHeader.includes('rel="next"')) {
+      const match = linkHeader.match(/<[^>]*page_info=([^>&>]+)[^>]*>; rel="next"/);
+      pageInfo = match ? match[1] : null;
+      hasNextPage = !!pageInfo;
+    } else {
+      hasNextPage = false;
+    }
+  }
+
+  return allOrders;
 }
 
 export async function getProducts(): Promise<ShopifyProduct[]> {
@@ -236,7 +282,18 @@ export async function getDailyMetrics(date: string) {
 
   // Calculate metrics
   const totalOrders = orders.length;
-  const revenue = orders.reduce((sum, order) => sum + parseFloat(order.total_price), 0);
+  // Calculate net revenue: subtotal - refunds
+  const revenue = orders.reduce((sum, order) => {
+    const subtotal = parseFloat(order.subtotal_price) || 0;
+    const refundTotal = (order.refunds || []).reduce((refundSum, refund) => {
+      const refundAmount = (refund.transactions || []).reduce(
+        (txSum, tx) => txSum + (parseFloat(tx.amount) || 0),
+        0
+      );
+      return refundSum + refundAmount;
+    }, 0);
+    return sum + subtotal - refundTotal;
+  }, 0);
   // Count new customer orders - customer with orders_count of 1 or created same day as order
   const newCustomerOrders = orders.filter((order) => {
     if (!order.customer) return false;
