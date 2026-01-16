@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
 
   const url = new URL(request.url);
   const days = parseInt(url.searchParams.get('days') || '30', 10);
+  const offset = parseInt(url.searchParams.get('offset') || '0', 10);
 
   try {
     await initDatabase();
@@ -35,9 +36,9 @@ export async function GET(request: NextRequest) {
     const results: Record<string, unknown> = {};
     const today = new Date();
 
-    // Generate list of dates to backfill
+    // Generate list of dates to backfill (with offset for batching)
     const dates: string[] = [];
-    for (let i = 0; i < days; i++) {
+    for (let i = offset; i < offset + days; i++) {
       dates.push(format(subDays(today, i), 'yyyy-MM-dd'));
     }
 
@@ -85,6 +86,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       daysBackfilled: days,
+      offset,
+      dateRange: { from: dates[dates.length - 1], to: dates[0] },
       synced: results,
       timestamp: new Date().toISOString(),
     });
