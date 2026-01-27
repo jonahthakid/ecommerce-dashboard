@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
           orders: metrics.orders,
           new_customer_orders: metrics.new_customer_orders,
           revenue: metrics.revenue,
+          contribution_margin: metrics.contribution_margin,
         });
         await upsertTopProducts(date, metrics.topProducts);
         results[`shopify_${date}`] = { status: 'synced', orders: metrics.orders };
