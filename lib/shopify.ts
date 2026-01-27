@@ -164,7 +164,7 @@ export async function getOrdersForDate(date: string): Promise<ShopifyOrder[]> {
     if (pageInfo) {
       endpoint = `orders.json?limit=250&page_info=${pageInfo}`;
     } else {
-      endpoint = `orders.json?status=any&financial_status=paid&created_at_min=${startOfDay}&created_at_max=${endOfDay}&limit=250`;
+      endpoint = `orders.json?status=any&financial_status=paid,partially_paid,partially_refunded,pending,authorized&created_at_min=${startOfDay}&created_at_max=${endOfDay}&limit=250`;
     }
 
     const accessToken = await getAccessToken();
