@@ -8,6 +8,7 @@ export interface ShopifyMetrics {
   orders: number;
   new_customer_orders: number;
   revenue: number;
+  contribution_margin: number;
   synced_at: string;
 }
 
@@ -55,8 +56,15 @@ export async function initDatabase() {
       orders INTEGER DEFAULT 0,
       new_customer_orders INTEGER DEFAULT 0,
       revenue DECIMAL(12,2) DEFAULT 0,
+      contribution_margin DECIMAL(12,2) DEFAULT 0,
       synced_at TIMESTAMP DEFAULT NOW()
     )
+  `;
+
+  // Add contribution_margin column if it doesn't exist (for existing databases)
+  await sql`
+    ALTER TABLE shopify_metrics
+    ADD COLUMN IF NOT EXISTS contribution_margin DECIMAL(12,2) DEFAULT 0
   `;
 
   await sql`
@@ -103,14 +111,15 @@ export async function initDatabase() {
 // Shopify metrics
 export async function upsertShopifyMetrics(data: Omit<ShopifyMetrics, 'id' | 'synced_at'>) {
   return sql`
-    INSERT INTO shopify_metrics (date, traffic, conversion_rate, orders, new_customer_orders, revenue)
-    VALUES (${data.date}, ${data.traffic}, ${data.conversion_rate}, ${data.orders}, ${data.new_customer_orders}, ${data.revenue})
+    INSERT INTO shopify_metrics (date, traffic, conversion_rate, orders, new_customer_orders, revenue, contribution_margin)
+    VALUES (${data.date}, ${data.traffic}, ${data.conversion_rate}, ${data.orders}, ${data.new_customer_orders}, ${data.revenue}, ${data.contribution_margin})
     ON CONFLICT (date) DO UPDATE SET
       traffic = EXCLUDED.traffic,
       conversion_rate = EXCLUDED.conversion_rate,
       orders = EXCLUDED.orders,
       new_customer_orders = EXCLUDED.new_customer_orders,
       revenue = EXCLUDED.revenue,
+      contribution_margin = EXCLUDED.contribution_margin,
       synced_at = NOW()
   `;
 }
@@ -212,8 +221,9 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
       orders: acc.orders + day.orders,
       new_customer_orders: acc.new_customer_orders + day.new_customer_orders,
       revenue: acc.revenue + Number(day.revenue),
+      contribution_margin: acc.contribution_margin + Number(day.contribution_margin || 0),
     }),
-    { traffic: 0, orders: 0, new_customer_orders: 0, revenue: 0 }
+    { traffic: 0, orders: 0, new_customer_orders: 0, revenue: 0, contribution_margin: 0 }
   );
 
   const avgConversionRate = shopify.length > 0

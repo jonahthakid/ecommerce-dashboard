@@ -20,6 +20,7 @@ interface Metrics {
     orders: number;
     new_customer_orders: number;
     revenue: number;
+    contribution_margin: number;
     daily: Array<{
       date: string;
       traffic: number;

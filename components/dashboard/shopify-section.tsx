@@ -8,6 +8,7 @@ interface ShopifyMetrics {
   orders: number;
   new_customer_orders: number;
   revenue: number;
+  contribution_margin: number;
 }
 
 interface ShopifySectionProps {
@@ -35,11 +36,17 @@ export function ShopifySection({ metrics, loading }: ShopifySectionProps) {
         <h2 className="text-2xl font-sans font-medium italic text-[#1e293b]">Pro Shop</h2>
         <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Store Performance</span>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title="Gross Revenue"
           value={metrics ? formatCurrency(metrics.revenue) : '-'}
           subtitle="Total Sales"
+          loading={loading}
+        />
+        <MetricCard
+          title="Contribution Margin"
+          value={metrics ? formatCurrency(metrics.contribution_margin || 0) : '-'}
+          subtitle={metrics && metrics.revenue > 0 ? `${((metrics.contribution_margin / metrics.revenue) * 100).toFixed(1)}% margin` : 'Revenue - COGS'}
           loading={loading}
         />
         <MetricCard

@@ -103,8 +103,13 @@ interface ShopifyOrder {
   } | null;
   line_items: Array<{
     product_id: string;
+    variant_id: string;
     title: string;
     quantity: number;
+    price: string;
+    discount_allocations: Array<{
+      amount: string;
+    }>;
   }>;
 }
 
@@ -112,8 +117,48 @@ interface ShopifyProduct {
   id: string;
   title: string;
   variants: Array<{
+    id: string;
     inventory_quantity: number;
+    inventory_item_id: string;
   }>;
+}
+
+// Cache for variant costs to avoid repeated API calls
+const variantCostCache: Map<string, number> = new Map();
+
+async function getInventoryItemCosts(inventoryItemIds: string[]): Promise<Map<string, number>> {
+  const costs = new Map<string, number>();
+  const uncachedIds = inventoryItemIds.filter(id => !variantCostCache.has(id));
+
+  if (uncachedIds.length === 0) {
+    // All costs are cached
+    inventoryItemIds.forEach(id => costs.set(id, variantCostCache.get(id) || 0));
+    return costs;
+  }
+
+  // Fetch in batches of 100 (Shopify limit)
+  const batchSize = 100;
+  for (let i = 0; i < uncachedIds.length; i += batchSize) {
+    const batch = uncachedIds.slice(i, i + batchSize);
+    const ids = batch.join(',');
+
+    try {
+      const data = await shopifyFetch<{ inventory_items: Array<{ id: string; cost: string | null }> }>(
+        `inventory_items.json?ids=${ids}`
+      );
+
+      for (const item of data.inventory_items) {
+        const cost = parseFloat(item.cost || '0') || 0;
+        variantCostCache.set(item.id.toString(), cost);
+      }
+    } catch (error) {
+      console.error('Error fetching inventory costs:', error);
+    }
+  }
+
+  // Return all requested costs
+  inventoryItemIds.forEach(id => costs.set(id, variantCostCache.get(id) || 0));
+  return costs;
 }
 
 async function shopifyFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -294,10 +339,37 @@ export async function getDailyMetrics(date: string) {
     getGA4Traffic(date).catch(() => ({ sessions: 0, visitors: 0 })),
   ]);
 
+  // Build variant -> inventory_item_id map
+  const variantToInventoryItem = new Map<string, string>();
+  for (const product of products) {
+    for (const variant of product.variants) {
+      variantToInventoryItem.set(variant.id.toString(), variant.inventory_item_id.toString());
+    }
+  }
+
+  // Get all inventory item IDs used in orders
+  const inventoryItemIds = new Set<string>();
+  for (const order of orders) {
+    for (const item of order.line_items) {
+      const inventoryItemId = variantToInventoryItem.get(item.variant_id?.toString());
+      if (inventoryItemId) {
+        inventoryItemIds.add(inventoryItemId);
+      }
+    }
+  }
+
+  // Fetch costs for all inventory items
+  const inventoryCosts = await getInventoryItemCosts(Array.from(inventoryItemIds));
+
   // Calculate metrics
   const totalOrders = orders.length;
-  // Calculate net revenue: subtotal - refunds
-  const revenue = orders.reduce((sum, order) => {
+
+  // Calculate net revenue, COGS, and line item discounts
+  let revenue = 0;
+  let totalCogs = 0;
+  let totalLineDiscounts = 0;
+
+  for (const order of orders) {
     const subtotal = parseFloat(order.subtotal_price) || 0;
     const refundTotal = (order.refunds || []).reduce((refundSum, refund) => {
       const refundAmount = (refund.transactions || []).reduce(
@@ -306,8 +378,25 @@ export async function getDailyMetrics(date: string) {
       );
       return refundSum + refundAmount;
     }, 0);
-    return sum + subtotal - refundTotal;
-  }, 0);
+    revenue += subtotal - refundTotal;
+
+    // Calculate COGS and discounts per line item
+    for (const item of order.line_items) {
+      const inventoryItemId = variantToInventoryItem.get(item.variant_id?.toString());
+      const unitCost = inventoryItemId ? (inventoryCosts.get(inventoryItemId) || 0) : 0;
+      totalCogs += unitCost * item.quantity;
+
+      // Sum line item discounts
+      const lineDiscount = (item.discount_allocations || []).reduce(
+        (sum, alloc) => sum + (parseFloat(alloc.amount) || 0),
+        0
+      );
+      totalLineDiscounts += lineDiscount;
+    }
+  }
+
+  // Contribution Margin = Revenue - COGS (discounts already reflected in revenue via subtotal)
+  const contributionMargin = revenue - totalCogs;
   // Count new customer orders - customer with orders_count of 1 or created same day as order
   const newCustomerOrders = orders.filter((order) => {
     if (!order.customer) return false;
@@ -375,6 +464,7 @@ export async function getDailyMetrics(date: string) {
     orders: totalOrders,
     new_customer_orders: newCustomerOrders,
     revenue,
+    contribution_margin: contributionMargin,
     topProducts,
   };
 }
