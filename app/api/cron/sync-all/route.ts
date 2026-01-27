@@ -5,7 +5,8 @@ import { getDailyMetrics as getMetaMetrics } from '@/lib/meta';
 import { getDailyMetrics as getGoogleMetrics } from '@/lib/google-ads';
 import { getDailyMetrics as getTiktokMetrics } from '@/lib/tiktok';
 import { getDailyMetrics as getSnapchatMetrics } from '@/lib/snapchat';
-import { upsertShopifyMetrics, upsertTopProducts, upsertAdMetrics, initDatabase } from '@/lib/db';
+import { getKlaviyoMetrics as fetchKlaviyoMetrics } from '@/lib/klaviyo';
+import { upsertShopifyMetrics, upsertTopProducts, upsertAdMetrics, upsertKlaviyoMetrics, initDatabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -72,6 +73,30 @@ export async function GET(request: NextRequest) {
           results[`${platform.name}_${date}`] = { status: 'error', error: String(error) };
         }
       }
+    }
+
+    // Sync Klaviyo
+    try {
+      const klaviyoMetrics = await fetchKlaviyoMetrics(yesterday, yesterday);
+      await upsertKlaviyoMetrics({
+        date: yesterday,
+        campaigns_sent: klaviyoMetrics.campaigns.total,
+        emails_sent: klaviyoMetrics.campaigns.sent,
+        emails_opened: klaviyoMetrics.campaigns.opened,
+        emails_clicked: klaviyoMetrics.campaigns.clicked,
+        open_rate: klaviyoMetrics.campaigns.openRate,
+        click_rate: klaviyoMetrics.campaigns.clickRate,
+        active_flows: klaviyoMetrics.flows.active,
+        subscriber_count: klaviyoMetrics.subscribers,
+      });
+      results['klaviyo'] = {
+        status: 'synced',
+        emails_sent: klaviyoMetrics.campaigns.sent,
+        subscriber_count: klaviyoMetrics.subscribers,
+      };
+    } catch (error) {
+      console.error('Klaviyo sync error:', error);
+      results['klaviyo'] = { status: 'error', error: String(error) };
     }
 
     return NextResponse.json({

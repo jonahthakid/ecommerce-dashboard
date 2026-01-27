@@ -1,9 +1,8 @@
 'use client';
 
-import { GlassCard } from '@/components/ui/glass-card';
+import { ClubCard } from '@/components/ui/club-card';
 import { MetricCard } from './metric-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DollarSign, TrendingUp } from 'lucide-react';
 
 interface PlatformMetrics {
   platform: string;
@@ -15,6 +14,7 @@ interface AdSpendSectionProps {
   platforms: PlatformMetrics[];
   totalSpend: number;
   blendedRoas: number;
+  newCustomerOrders: number;
   loading: boolean;
 }
 
@@ -34,25 +34,26 @@ const platformNames: Record<string, string> = {
   snapchat: 'Snapchat',
 };
 
-const platformColors: Record<string, { bg: string; border: string; text: string }> = {
-  meta: { bg: 'bg-blue-500/20', border: 'border-blue-500/30', text: 'text-blue-400' },
-  google: { bg: 'bg-red-500/20', border: 'border-red-500/30', text: 'text-red-400' },
-  tiktok: { bg: 'bg-slate-500/20', border: 'border-slate-500/30', text: 'text-slate-300' },
-  snapchat: { bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', text: 'text-yellow-400' },
+const platformColors: Record<string, string> = {
+  meta: 'bg-blue-500',
+  google: 'bg-red-500',
+  tiktok: 'bg-slate-700',
+  snapchat: 'bg-yellow-500',
 };
 
-export function AdSpendSection({ platforms, totalSpend, blendedRoas, loading }: AdSpendSectionProps) {
+export function AdSpendSection({ platforms, totalSpend, blendedRoas, newCustomerOrders, loading }: AdSpendSectionProps) {
+  const costPerNewCustomer = newCustomerOrders > 0 ? totalSpend / newCustomerOrders : 0;
+
   if (loading) {
     return (
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold text-white">Ad Performance</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Skeleton className="h-32 bg-white/5" />
-          <Skeleton className="h-32 bg-white/5" />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 bg-white/5" />
+      <div className="space-y-6">
+        <h2 className="text-2xl font-sans font-medium italic text-[#1e293b]">Ad Performance</h2>
+        <div className="grid gap-6 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-[#fdfcf8] border-2 border-[#1e293b] p-6">
+              <Skeleton className="h-4 w-24 mb-4 bg-[#1e293b]/10" />
+              <Skeleton className="h-10 w-32 bg-[#1e293b]/10" />
+            </div>
           ))}
         </div>
       </div>
@@ -60,53 +61,58 @@ export function AdSpendSection({ platforms, totalSpend, blendedRoas, loading }: 
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-white">Ad Performance</h2>
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <h2 className="text-2xl font-sans font-medium italic text-[#1e293b]">Scorecard</h2>
+        <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Ad Performance</span>
+      </div>
 
       {/* Combined totals */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         <MetricCard
           title="Total Ad Spend"
           value={formatCurrency(totalSpend)}
-          subtitle="All platforms combined"
-          icon={DollarSign}
+          subtitle="All Platforms"
         />
         <MetricCard
           title="Blended ROAS"
           value={`${blendedRoas.toFixed(2)}x`}
           subtitle="Revenue / Ad Spend"
-          icon={TrendingUp}
+        />
+        <MetricCard
+          title="Cost per New Customer"
+          value={formatCurrency(costPerNewCustomer)}
+          subtitle={`${newCustomerOrders} new customers`}
         />
       </div>
 
       {/* Individual platforms */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {['meta', 'google', 'tiktok', 'snapchat'].map((platformKey) => {
           const platform = platforms.find((p) => p.platform === platformKey);
-          const colors = platformColors[platformKey];
           return (
-            <GlassCard key={platformKey}>
+            <ClubCard key={platformKey}>
               <div className="flex items-center gap-2 mb-4">
-                <div className={`w-3 h-3 rounded-full ${colors.bg} ${colors.border} border`} />
-                <span className={`text-sm font-medium ${colors.text}`}>
+                <span className={`w-3 h-3 ${platformColors[platformKey]} border-2 border-[#1e293b]`}></span>
+                <span className="font-mono text-sm font-bold text-[#1e293b] uppercase">
                   {platformNames[platformKey]}
                 </span>
               </div>
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Spend</p>
-                  <p className="text-2xl font-bold text-white">
+                  <p className="text-xs font-mono font-bold text-[#1e293b]/60 uppercase tracking-wider">Spend</p>
+                  <p className="text-2xl font-mono font-bold text-[#1e293b]">
                     {platform ? formatCurrency(platform.spend) : '$0'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">ROAS</p>
-                  <p className="text-lg font-semibold text-slate-300">
+                  <p className="text-xs font-mono font-bold text-[#1e293b]/60 uppercase tracking-wider">ROAS</p>
+                  <p className="text-lg font-mono font-bold text-[#ef4444]">
                     {platform ? `${platform.roas.toFixed(2)}x` : '0.00x'}
                   </p>
                 </div>
               </div>
-            </GlassCard>
+            </ClubCard>
           );
         })}
       </div>

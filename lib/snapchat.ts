@@ -46,6 +46,13 @@ interface SnapchatStatsResponse {
       }>;
     };
   }>;
+  total_stats?: Array<{
+    total_stat: {
+      stats: {
+        spend?: number;
+      };
+    };
+  }>;
 }
 
 async function snapchatFetch<T>(endpoint: string): Promise<T> {
@@ -66,47 +73,57 @@ async function snapchatFetch<T>(endpoint: string): Promise<T> {
   return response.json();
 }
 
+// Helper to get timezone offset based on date (PST vs PDT)
+function getTimezoneOffset(date: string): string {
+  const d = new Date(date);
+  const month = d.getMonth() + 1; // 1-12
+  const day = d.getDate();
+
+  // Rough DST check for America/Los_Angeles
+  // DST starts ~March 10, ends ~November 3
+  if (month > 3 && month < 11) {
+    return '-07:00'; // PDT
+  } else if (month === 3 && day >= 10) {
+    return '-07:00'; // PDT
+  } else if (month === 11 && day < 3) {
+    return '-07:00'; // PDT
+  }
+  return '-08:00'; // PST
+}
+
 export async function getDailyMetrics(date: string) {
   try {
-    // Snapchat requires times in account timezone (America/Los_Angeles = PST -08:00)
-    const startTime = `${date}T00:00:00.000-08:00`;
+    const offset = getTimezoneOffset(date);
+    const startTime = `${date}T00:00:00.000${offset}`;
+
     // Calculate next day for end time
     const dateObj = new Date(date);
     dateObj.setDate(dateObj.getDate() + 1);
     const nextDay = dateObj.toISOString().split('T')[0];
-    const endTime = `${nextDay}T00:00:00.000-08:00`;
+    const nextOffset = getTimezoneOffset(nextDay);
+    const endTime = `${nextDay}T00:00:00.000${nextOffset}`;
 
+    // Use TOTAL granularity which is more reliable
     const data = await snapchatFetch<SnapchatStatsResponse>(
-      `adaccounts/${SNAPCHAT_AD_ACCOUNT_ID}/stats?granularity=DAY&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&fields=spend`
+      `adaccounts/${SNAPCHAT_AD_ACCOUNT_ID}/stats?granularity=TOTAL&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&fields=spend`
     );
 
-    if (!data.timeseries_stats || data.timeseries_stats.length === 0) {
+    // Handle TOTAL response format
+    if (data.total_stats && data.total_stats.length > 0) {
+      const spend = (data.total_stats[0].total_stat.stats.spend || 0) / 1_000_000;
       return {
         date,
         platform: 'snapchat' as const,
-        spend: 0,
+        spend,
         roas: 0,
       };
     }
-
-    const timeseries = data.timeseries_stats[0]?.timeseries_stat?.timeseries;
-    if (!timeseries || timeseries.length === 0) {
-      return {
-        date,
-        platform: 'snapchat' as const,
-        spend: 0,
-        roas: 0,
-      };
-    }
-
-    // Snapchat spend is in micros (millionths of currency)
-    const spend = (timeseries[0].stats.spend || 0) / 1_000_000;
 
     return {
       date,
       platform: 'snapchat' as const,
-      spend,
-      roas: 0, // ROAS not available at account level
+      spend: 0,
+      roas: 0,
     };
   } catch (error) {
     console.error('Snapchat API error:', error);

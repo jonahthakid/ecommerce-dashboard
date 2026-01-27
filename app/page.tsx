@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
 import { DateRangeSelector, DateRange, getDefaultDateRange } from '@/components/dashboard/date-range-selector';
 import { ShopifySection } from '@/components/dashboard/shopify-section';
 import { AdSpendSection } from '@/components/dashboard/ad-spend-section';
 import { TopProductsTable } from '@/components/dashboard/top-products-table';
 import { TrendChart } from '@/components/dashboard/trend-chart';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Trophy, Search, Menu } from 'lucide-react';
+
+const ASSETS = {
+  logoShield: "/assets/SSC-Big-S-Play-or-Perish-Color.png",
+  arrowNavy: "/assets/SSC-Arrow-Navy.png"
+};
 
 interface Metrics {
   shopify: {
@@ -44,6 +48,16 @@ interface Metrics {
     quantity_sold: number;
     inventory_remaining: number;
   }>;
+  klaviyo: {
+    campaigns_sent: number;
+    emails_sent: number;
+    emails_opened: number;
+    emails_clicked: number;
+    open_rate: number;
+    click_rate: number;
+    active_flows: number;
+    subscriber_count: number;
+  };
 }
 
 interface ApiResponse {
@@ -96,29 +110,35 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0f172a] to-black text-slate-200 selection:bg-cyan-500/30 pb-20">
-      {/* Ambient Background Glows */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-500/20 rounded-full blur-3xl opacity-40 mix-blend-screen" />
-        <div className="absolute top-[20%] right-[-10%] w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl opacity-40 mix-blend-screen" />
-        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px] opacity-30" />
-      </div>
+    <div className="min-h-screen bg-[#f4f1ea] text-[#1e293b] font-sans selection:bg-[#ef4444] selection:text-white">
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-10 space-y-8">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
-              Dashboard
-            </h1>
-            <p className="text-slate-400 mt-1">
-              {dateRange.label} &middot; {dateRange.startDate} - {dateRange.endDate}
-            </p>
+      {/* Nav Bar */}
+      <nav className="bg-[#fdfcf8] border-b-2 border-[#1e293b] sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
+
+          {/* Logo Brand Area */}
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 relative hover:scale-105 transition-transform duration-300">
+              <img
+                src={ASSETS.logoShield}
+                alt="SSC Shield Logo"
+                className="w-full h-full object-contain drop-shadow-md"
+              />
+            </div>
+            <div className="hidden md:block">
+              <h1 className="text-2xl font-sans font-bold uppercase tracking-widest leading-none text-[#1e293b]">
+                Sugarloaf
+              </h1>
+              <span className="text-xs font-mono font-bold text-[#ef4444] tracking-[0.2em] uppercase">
+                Play or Perish
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Right Actions */}
+          <div className="hidden md:flex items-center gap-4">
             {lastUpdated && (
-              <span className="text-xs font-mono text-slate-500 hidden md:block">
+              <span className="font-mono text-xs font-bold text-[#1e293b]/40 uppercase">
                 Synced {getTimeSinceUpdate()}
               </span>
             )}
@@ -126,65 +146,101 @@ export default function Dashboard() {
             <button
               onClick={fetchMetrics}
               disabled={loading}
-              className="px-4 py-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all font-medium text-sm flex items-center gap-2 group disabled:opacity-50"
+              className="px-6 py-2 bg-[#1e293b] text-white font-bold uppercase tracking-wider text-xs border-2 border-[#1e293b] hover:bg-[#ef4444] hover:border-[#ef4444] transition-all shadow-[4px_4px_0px_0px_#ef4444] hover:shadow-[2px_2px_0px_0px_#1e293b] disabled:opacity-50 flex items-center gap-2"
             >
-              <RefreshCw
-                size={16}
-                className={`${loading ? 'animate-spin' : 'group-hover:rotate-180'} transition-transform duration-500`}
-              />
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               {loading ? 'Loading...' : 'Refresh'}
             </button>
           </div>
-        </header>
+
+          <button className="md:hidden p-2 border-2 border-[#1e293b]">
+            <Menu size={24} />
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
+
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-end border-b-2 border-[#1e293b] pb-4 gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy className="text-[#ef4444]" size={20} />
+              <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-widest">
+                {dateRange.label}
+              </span>
+            </div>
+            <h2 className="text-5xl font-sans font-bold uppercase text-[#1e293b] tracking-tight">
+              Performance
+            </h2>
+          </div>
+
+          {/* Decorative Arrow */}
+          <div className="hidden md:block w-48 opacity-80 pb-2">
+            <img src={ASSETS.arrowNavy} alt="Arrow" className="w-full" />
+          </div>
+        </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="glass-card p-4 border-rose-500/30 bg-rose-500/10">
-            <p className="font-medium text-rose-400">Error loading metrics</p>
-            <p className="text-sm text-rose-300/70">{error}</p>
-            <Button onClick={fetchMetrics} variant="outline" size="sm" className="mt-2">
+          <div className="bg-[#fee2e2] border-2 border-[#ef4444] p-4 shadow-[4px_4px_0px_0px_#ef4444]">
+            <p className="font-bold text-[#ef4444] uppercase">Error Loading Metrics</p>
+            <p className="text-sm text-[#ef4444]/80">{error}</p>
+            <button
+              onClick={fetchMetrics}
+              className="mt-2 px-4 py-1 bg-[#ef4444] text-white font-bold text-xs uppercase border-2 border-[#ef4444] hover:bg-[#1e293b] hover:border-[#1e293b] transition-all"
+            >
               Try Again
-            </Button>
+            </button>
           </div>
         )}
 
-        {/* Main Content */}
-        <div className="space-y-8">
-          {/* Shopify Metrics */}
-          <ShopifySection
-            metrics={metrics?.shopify || null}
-            loading={loading}
-          />
+        {/* Shopify Metrics */}
+        <ShopifySection
+          metrics={metrics?.shopify || null}
+          loading={loading}
+        />
 
-          {/* Ad Performance */}
-          <AdSpendSection
-            platforms={metrics?.ads.platforms || []}
-            totalSpend={metrics?.ads.totalSpend || 0}
-            blendedRoas={metrics?.ads.blendedRoas || 0}
-            loading={loading}
-          />
+        {/* Ad Performance */}
+        <AdSpendSection
+          platforms={metrics?.ads.platforms || []}
+          totalSpend={metrics?.ads.totalSpend || 0}
+          blendedRoas={metrics?.ads.blendedRoas || 0}
+          newCustomerOrders={metrics?.shopify.new_customer_orders || 0}
+          loading={loading}
+        />
 
-          {/* Charts and Tables */}
-          <div className="grid gap-8 lg:grid-cols-2">
+        {/* Charts and Tables */}
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2">
             <TrendChart
               shopifyDaily={metrics?.shopify.daily || []}
               adsDaily={metrics?.ads.daily || []}
               loading={loading}
             />
-            <TopProductsTable
-              products={metrics?.topProducts || []}
-              loading={loading}
-            />
           </div>
+          <TopProductsTable
+            products={metrics?.topProducts || []}
+            loading={loading}
+          />
         </div>
 
-        {/* Footer */}
-        <footer className="pt-8 border-t border-white/5">
-          <p className="text-sm text-slate-500 text-center">
-            Data synced every 6 hours via Vercel Cron. Manual refresh available above.
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t-2 border-[#1e293b] bg-[#fdfcf8] mt-12 py-8">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-3">
+            <img src={ASSETS.logoShield} className="w-8 h-8 opacity-80" alt="SSC" />
+            <p className="font-sans italic text-[#1e293b]/60">&quot;Golf&apos;s Happiest Accident&quot;</p>
+          </div>
+          <p className="font-mono text-xs font-bold uppercase text-[#1e293b]/40">
+            Data synced every 6 hours via Vercel Cron
           </p>
-        </footer>
-      </div>
+        </div>
+      </footer>
+
     </div>
   );
 }

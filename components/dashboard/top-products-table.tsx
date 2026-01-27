@@ -1,6 +1,6 @@
 'use client';
 
-import { GlassCard } from '@/components/ui/glass-card';
+import { ClubCard } from '@/components/ui/club-card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface TopProduct {
@@ -18,52 +18,57 @@ interface TopProductsTableProps {
 function getInventoryStatus(quantity: number): { label: string; className: string } {
   if (quantity <= 0) {
     return {
-      label: 'Out of Stock',
-      className: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+      label: 'Out',
+      className: 'bg-[#fee2e2] text-[#ef4444] border-[#ef4444]'
     };
   }
   if (quantity < 10) {
     return {
-      label: 'Low Stock',
-      className: 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+      label: 'Low',
+      className: 'bg-[#fef3c7] text-[#d97706] border-[#d97706]'
     };
   }
   return {
-    label: 'In Stock',
-    className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+    label: 'OK',
+    className: 'bg-[#d1fae5] text-[#059669] border-[#059669]'
   };
 }
 
 export function TopProductsTable({ products, loading }: TopProductsTableProps) {
   if (loading) {
     return (
-      <GlassCard>
-        <h3 className="text-xl font-bold text-white mb-4">Top Selling Products</h3>
+      <ClubCard>
+        <div className="flex items-center gap-3 mb-6">
+          <h3 className="text-2xl font-sans font-medium italic text-[#1e293b]">Merch</h3>
+          <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Top Sellers</span>
+        </div>
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-14 w-full bg-white/5" />
+            <Skeleton key={i} className="h-14 w-full bg-[#1e293b]/10" />
           ))}
         </div>
-      </GlassCard>
+      </ClubCard>
     );
   }
 
   return (
-    <GlassCard>
-      <h3 className="text-xl font-bold text-white mb-4">Top Selling Products</h3>
+    <ClubCard>
+      <div className="flex items-center gap-3 mb-6">
+        <h3 className="text-2xl font-sans font-medium italic text-[#1e293b]">Merch</h3>
+        <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Top Sellers</span>
+      </div>
       {products.length === 0 ? (
-        <p className="text-slate-500 text-center py-8">
+        <p className="text-[#1e293b]/60 text-center py-8 font-mono uppercase text-sm">
           No product data available
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {/* Header */}
-          <div className="grid grid-cols-12 gap-4 px-3 py-2 text-xs text-slate-500 uppercase tracking-wider border-b border-white/5">
+          <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs font-mono font-bold text-[#1e293b]/60 uppercase tracking-wider border-b-2 border-[#1e293b]">
             <div className="col-span-1">#</div>
-            <div className="col-span-5">Product</div>
+            <div className="col-span-6">Product</div>
             <div className="col-span-2 text-right">Sold</div>
-            <div className="col-span-2 text-right">Stock</div>
-            <div className="col-span-2 text-right">Status</div>
+            <div className="col-span-3 text-right">Stock</div>
           </div>
 
           {/* Rows */}
@@ -72,22 +77,22 @@ export function TopProductsTable({ products, loading }: TopProductsTableProps) {
             return (
               <div
                 key={product.product_id}
-                className="grid grid-cols-12 gap-4 px-3 py-3 rounded-lg hover:bg-white/5 transition-colors group"
+                className="grid grid-cols-12 gap-2 px-3 py-3 border-b border-[#1e293b]/10 hover:bg-[#1e293b]/5 transition-colors group"
               >
-                <div className="col-span-1 text-slate-500 font-mono text-sm">
+                <div className="col-span-1 font-mono text-sm font-bold text-[#ef4444]">
                   {index + 1}
                 </div>
-                <div className="col-span-5 text-white font-medium truncate group-hover:text-cyan-400 transition-colors">
+                <div className="col-span-6 text-[#1e293b] font-bold truncate group-hover:text-[#ef4444] transition-colors text-sm">
                   {product.product_title}
                 </div>
-                <div className="col-span-2 text-right text-white font-semibold">
+                <div className="col-span-2 text-right font-mono font-bold text-[#1e293b]">
                   {product.quantity_sold}
                 </div>
-                <div className="col-span-2 text-right text-slate-400">
-                  {product.inventory_remaining}
-                </div>
-                <div className="col-span-2 text-right">
-                  <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium border ${status.className}`}>
+                <div className="col-span-3 text-right flex items-center justify-end gap-2">
+                  <span className="font-mono text-sm text-[#1e293b]/60">
+                    {product.inventory_remaining}
+                  </span>
+                  <span className={`inline-flex px-2 py-0.5 text-[10px] font-mono font-bold uppercase border-2 ${status.className}`}>
                     {status.label}
                   </span>
                 </div>
@@ -96,6 +101,6 @@ export function TopProductsTable({ products, loading }: TopProductsTableProps) {
           })}
         </div>
       )}
-    </GlassCard>
+    </ClubCard>
   );
 }

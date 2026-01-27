@@ -30,6 +30,20 @@ export interface AdMetrics {
   synced_at: string;
 }
 
+export interface KlaviyoMetrics {
+  id: number;
+  date: string;
+  campaigns_sent: number;
+  emails_sent: number;
+  emails_opened: number;
+  emails_clicked: number;
+  open_rate: number;
+  click_rate: number;
+  active_flows: number;
+  subscriber_count: number;
+  synced_at: string;
+}
+
 // Initialize database tables
 export async function initDatabase() {
   await sql`
@@ -66,6 +80,22 @@ export async function initDatabase() {
       roas DECIMAL(8,2) DEFAULT 0,
       synced_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(date, platform)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS klaviyo_metrics (
+      id SERIAL PRIMARY KEY,
+      date DATE UNIQUE NOT NULL,
+      campaigns_sent INTEGER DEFAULT 0,
+      emails_sent INTEGER DEFAULT 0,
+      emails_opened INTEGER DEFAULT 0,
+      emails_clicked INTEGER DEFAULT 0,
+      open_rate DECIMAL(5,2) DEFAULT 0,
+      click_rate DECIMAL(5,2) DEFAULT 0,
+      active_flows INTEGER DEFAULT 0,
+      subscriber_count INTEGER DEFAULT 0,
+      synced_at TIMESTAMP DEFAULT NOW()
     )
   `;
 }
@@ -139,12 +169,40 @@ export async function getAdMetrics(startDate: string, endDate: string) {
   return result.rows;
 }
 
+// Klaviyo metrics
+export async function upsertKlaviyoMetrics(data: Omit<KlaviyoMetrics, 'id' | 'synced_at'>) {
+  return sql`
+    INSERT INTO klaviyo_metrics (date, campaigns_sent, emails_sent, emails_opened, emails_clicked, open_rate, click_rate, active_flows, subscriber_count)
+    VALUES (${data.date}, ${data.campaigns_sent}, ${data.emails_sent}, ${data.emails_opened}, ${data.emails_clicked}, ${data.open_rate}, ${data.click_rate}, ${data.active_flows}, ${data.subscriber_count})
+    ON CONFLICT (date) DO UPDATE SET
+      campaigns_sent = EXCLUDED.campaigns_sent,
+      emails_sent = EXCLUDED.emails_sent,
+      emails_opened = EXCLUDED.emails_opened,
+      emails_clicked = EXCLUDED.emails_clicked,
+      open_rate = EXCLUDED.open_rate,
+      click_rate = EXCLUDED.click_rate,
+      active_flows = EXCLUDED.active_flows,
+      subscriber_count = EXCLUDED.subscriber_count,
+      synced_at = NOW()
+  `;
+}
+
+export async function getKlaviyoMetrics(startDate: string, endDate: string) {
+  const result = await sql<KlaviyoMetrics>`
+    SELECT * FROM klaviyo_metrics
+    WHERE date >= ${startDate} AND date <= ${endDate}
+    ORDER BY date DESC
+  `;
+  return result.rows;
+}
+
 // Aggregated queries
 export async function getAggregatedMetrics(startDate: string, endDate: string) {
-  const [shopify, ads, topProducts] = await Promise.all([
+  const [shopify, ads, topProducts, klaviyo] = await Promise.all([
     getShopifyMetrics(startDate, endDate),
     getAdMetrics(startDate, endDate),
     getTopProducts(endDate), // Get top products for the most recent date
+    getKlaviyoMetrics(startDate, endDate),
   ]);
 
   // Calculate totals
@@ -184,6 +242,19 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
   const totalRevenue = shopifyTotals.revenue;
   const blendedRoas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
 
+  // Klaviyo totals
+  const klaviyoTotals = klaviyo.reduce(
+    (acc, day) => ({
+      campaigns_sent: acc.campaigns_sent + day.campaigns_sent,
+      emails_sent: acc.emails_sent + day.emails_sent,
+      emails_opened: acc.emails_opened + day.emails_opened,
+      emails_clicked: acc.emails_clicked + day.emails_clicked,
+    }),
+    { campaigns_sent: 0, emails_sent: 0, emails_opened: 0, emails_clicked: 0 }
+  );
+
+  const latestKlaviyo = klaviyo[0]; // Most recent day for current counts
+
   return {
     shopify: {
       ...shopifyTotals,
@@ -197,5 +268,16 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
       daily: ads,
     },
     topProducts,
+    klaviyo: {
+      campaigns_sent: klaviyoTotals.campaigns_sent,
+      emails_sent: klaviyoTotals.emails_sent,
+      emails_opened: klaviyoTotals.emails_opened,
+      emails_clicked: klaviyoTotals.emails_clicked,
+      open_rate: klaviyoTotals.emails_sent > 0 ? (klaviyoTotals.emails_opened / klaviyoTotals.emails_sent) * 100 : 0,
+      click_rate: klaviyoTotals.emails_sent > 0 ? (klaviyoTotals.emails_clicked / klaviyoTotals.emails_sent) * 100 : 0,
+      active_flows: latestKlaviyo?.active_flows || 0,
+      subscriber_count: latestKlaviyo?.subscriber_count || 0,
+      daily: klaviyo,
+    },
   };
 }

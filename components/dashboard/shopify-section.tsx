@@ -1,7 +1,6 @@
 'use client';
 
 import { MetricCard } from './metric-card';
-import { Users, TrendingUp, ShoppingCart, UserPlus, DollarSign } from 'lucide-react';
 
 interface ShopifyMetrics {
   traffic: number;
@@ -31,43 +30,41 @@ function formatNumber(value: number): string {
 
 export function ShopifySection({ metrics, loading }: ShopifySectionProps) {
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-bold text-white">Store Performance</h2>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <h2 className="text-2xl font-sans font-medium italic text-[#1e293b]">Pro Shop</h2>
+        <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Store Performance</span>
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+        <MetricCard
+          title="Gross Revenue"
+          value={metrics ? formatCurrency(metrics.revenue) : '-'}
+          subtitle="Total Sales"
+          loading={loading}
+        />
+        <MetricCard
+          title="Orders"
+          value={metrics ? formatNumber(metrics.orders) : '-'}
+          subtitle="Completed"
+          loading={loading}
+        />
+        <MetricCard
+          title="New Members"
+          value={metrics ? formatNumber(metrics.new_customer_orders) : '-'}
+          subtitle="First-time Buyers"
+          loading={loading}
+        />
         <MetricCard
           title="Traffic"
           value={metrics ? formatNumber(metrics.traffic) : '-'}
           subtitle="Sessions"
           loading={loading}
-          icon={Users}
         />
         <MetricCard
-          title="Conversion Rate"
+          title="Conversion"
           value={metrics ? `${metrics.conversion_rate.toFixed(2)}%` : '-'}
-          subtitle="Visitors to customers"
+          subtitle="Visitors to Customers"
           loading={loading}
-          icon={TrendingUp}
-        />
-        <MetricCard
-          title="Orders"
-          value={metrics ? formatNumber(metrics.orders) : '-'}
-          subtitle="Total orders"
-          loading={loading}
-          icon={ShoppingCart}
-        />
-        <MetricCard
-          title="New Customers"
-          value={metrics ? formatNumber(metrics.new_customer_orders) : '-'}
-          subtitle="First-time buyers"
-          loading={loading}
-          icon={UserPlus}
-        />
-        <MetricCard
-          title="Revenue"
-          value={metrics ? formatCurrency(metrics.revenue) : '-'}
-          subtitle="Total revenue"
-          loading={loading}
-          icon={DollarSign}
         />
       </div>
     </div>

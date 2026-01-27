@@ -1,13 +1,62 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Neutraface Display Font Family */
+@font-face {
+  font-family: 'Neutraface';
+  src: url('/fonts/Neutra2Display-Thin.otf') format('opentype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neutraface';
+  src: url('/fonts/Neutra2Display-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neutraface';
+  src: url('/fonts/Neutra2Display-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neutraface';
+  src: url('/fonts/Neutra2Display-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neutraface Titling';
+  src: url('/fonts/Neutra2Display-Titling.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neutraface Inline';
+  src: url('/fonts/Neutra2Display-Inline.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: 'Neutraface', system-ui, sans-serif;
+  --font-mono: 'bdr-mono', 'Courier New', monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -144,6 +193,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Neutraface', system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
