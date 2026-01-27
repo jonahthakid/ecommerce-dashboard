@@ -136,10 +136,24 @@ async function shopifyFetch<T>(endpoint: string, options?: RequestInit): Promise
   return response.json();
 }
 
+// Get EST/EDT offset for a given date
+function getEasternOffset(date: string): string {
+  const d = new Date(date);
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+
+  // DST runs roughly March second Sunday to November first Sunday
+  // Simplified: March 8-14 start, November 1-7 end
+  if (month > 3 && month < 11) return '-04:00'; // EDT
+  if (month === 3 && day >= 8) return '-04:00'; // EDT (approx)
+  if (month === 11 && day < 7) return '-04:00'; // EDT (approx)
+  return '-05:00'; // EST
+}
+
 export async function getOrdersForDate(date: string): Promise<ShopifyOrder[]> {
-  // Use store's local timezone (EST = -05:00)
-  const startOfDay = `${date}T00:00:00-05:00`;
-  const endOfDay = `${date}T23:59:59-05:00`;
+  const offset = getEasternOffset(date);
+  const startOfDay = `${date}T00:00:00${offset}`;
+  const endOfDay = `${date}T23:59:59${offset}`;
 
   const allOrders: ShopifyOrder[] = [];
   let pageInfo: string | null = null;
@@ -150,7 +164,7 @@ export async function getOrdersForDate(date: string): Promise<ShopifyOrder[]> {
     if (pageInfo) {
       endpoint = `orders.json?limit=250&page_info=${pageInfo}`;
     } else {
-      endpoint = `orders.json?status=any&created_at_min=${startOfDay}&created_at_max=${endOfDay}&limit=250`;
+      endpoint = `orders.json?status=any&financial_status=paid&created_at_min=${startOfDay}&created_at_max=${endOfDay}&limit=250`;
     }
 
     const accessToken = await getAccessToken();
