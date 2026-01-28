@@ -147,14 +147,25 @@ export async function upsertTopProducts(date: string, products: Array<Omit<TopPr
   }
 }
 
-export async function getTopProducts(date: string) {
-  const result = await sql<TopProduct>`
-    SELECT * FROM shopify_top_products
-    WHERE date = ${date}
-    ORDER BY quantity_sold DESC
+export async function getTopProducts(startDate: string, endDate: string) {
+  const result = await sql`
+    SELECT
+      product_id,
+      product_title,
+      SUM(quantity_sold) as quantity_sold,
+      MAX(inventory_remaining) as inventory_remaining
+    FROM shopify_top_products
+    WHERE date >= ${startDate} AND date <= ${endDate}
+    GROUP BY product_id, product_title
+    ORDER BY SUM(quantity_sold) DESC
     LIMIT 10
   `;
-  return result.rows;
+  return result.rows.map(row => ({
+    product_id: row.product_id,
+    product_title: row.product_title,
+    quantity_sold: Number(row.quantity_sold),
+    inventory_remaining: Number(row.inventory_remaining),
+  }));
 }
 
 // Ad metrics
@@ -210,7 +221,7 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
   const [shopify, ads, topProducts, klaviyo] = await Promise.all([
     getShopifyMetrics(startDate, endDate),
     getAdMetrics(startDate, endDate),
-    getTopProducts(endDate), // Get top products for the most recent date
+    getTopProducts(startDate, endDate),
     getKlaviyoMetrics(startDate, endDate),
   ]);
 
