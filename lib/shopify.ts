@@ -125,38 +125,57 @@ interface ShopifyProduct {
 
 // Cache for variant costs to avoid repeated API calls
 const variantCostCache: Map<string, number> = new Map();
+let allCostsFetched = false;
 
-async function getInventoryItemCosts(inventoryItemIds: string[]): Promise<Map<string, number>> {
-  const costs = new Map<string, number>();
-  const uncachedIds = inventoryItemIds.filter(id => !variantCostCache.has(id));
+async function fetchAllInventoryCosts(): Promise<void> {
+  if (allCostsFetched) return;
 
-  if (uncachedIds.length === 0) {
-    // All costs are cached
-    inventoryItemIds.forEach(id => costs.set(id, variantCostCache.get(id) || 0));
-    return costs;
-  }
+  try {
+    // Fetch all inventory items in one paginated request
+    let pageInfo: string | null = null;
+    let hasNextPage = true;
 
-  // Fetch in batches of 100 (Shopify limit)
-  const batchSize = 100;
-  for (let i = 0; i < uncachedIds.length; i += batchSize) {
-    const batch = uncachedIds.slice(i, i + batchSize);
-    const ids = batch.join(',');
+    while (hasNextPage) {
+      const endpoint = pageInfo
+        ? `inventory_items.json?limit=250&page_info=${pageInfo}`
+        : 'inventory_items.json?limit=250';
 
-    try {
-      const data = await shopifyFetch<{ inventory_items: Array<{ id: string; cost: string | null }> }>(
-        `inventory_items.json?ids=${ids}`
+      const accessToken = await getAccessToken();
+      const response = await fetch(
+        `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-01/${endpoint}`,
+        { headers: { 'X-Shopify-Access-Token': accessToken } }
       );
 
-      for (const item of data.inventory_items) {
+      if (!response.ok) break;
+
+      const data = await response.json();
+      for (const item of data.inventory_items || []) {
         const cost = parseFloat(item.cost || '0') || 0;
         variantCostCache.set(item.id.toString(), cost);
       }
-    } catch (error) {
-      console.error('Error fetching inventory costs:', error);
-    }
-  }
 
-  // Return all requested costs
+      // Check pagination
+      const linkHeader = response.headers.get('Link');
+      if (linkHeader && linkHeader.includes('rel="next"')) {
+        const match = linkHeader.match(/<[^>]*page_info=([^>&>]+)[^>]*>; rel="next"/);
+        pageInfo = match ? match[1] : null;
+        hasNextPage = !!pageInfo;
+      } else {
+        hasNextPage = false;
+      }
+    }
+
+    allCostsFetched = true;
+  } catch (error) {
+    console.error('Error fetching all inventory costs:', error);
+  }
+}
+
+async function getInventoryItemCosts(inventoryItemIds: string[]): Promise<Map<string, number>> {
+  // Try to fetch all costs once upfront
+  await fetchAllInventoryCosts();
+
+  const costs = new Map<string, number>();
   inventoryItemIds.forEach(id => costs.set(id, variantCostCache.get(id) || 0));
   return costs;
 }
