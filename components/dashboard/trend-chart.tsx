@@ -78,7 +78,7 @@ export function TrendChart({ shopifyDaily, adsDaily, loading }: TrendChartProps)
     return (
       <ClubCard>
         <div className="flex items-center gap-3 mb-6">
-          <h3 className="text-2xl font-sans font-medium italic text-[#1e293b]">Trends</h3>
+          <h3 className="text-2xl font-sans font-medium text-[#1e293b]">Trends</h3>
           <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Performance</span>
         </div>
         <Skeleton className="h-[300px] w-full bg-[#1e293b]/10" />
@@ -139,7 +139,7 @@ export function TrendChart({ shopifyDaily, adsDaily, loading }: TrendChartProps)
     <ClubCard>
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <h3 className="text-2xl font-sans font-medium italic text-[#1e293b]">Trends</h3>
+          <h3 className="text-2xl font-sans font-medium text-[#1e293b]">Trends</h3>
           <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Performance</span>
         </div>
 

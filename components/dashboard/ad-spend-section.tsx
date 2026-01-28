@@ -47,7 +47,7 @@ export function AdSpendSection({ platforms, totalSpend, blendedRoas, newCustomer
   if (loading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-2xl font-sans font-medium italic text-[#1e293b]">Ad Performance</h2>
+        <h2 className="text-2xl font-sans font-medium text-[#1e293b]">Ad Performance</h2>
         <div className="grid gap-6 md:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="bg-[#fdfcf8] border-2 border-[#1e293b] p-6">
@@ -63,7 +63,7 @@ export function AdSpendSection({ platforms, totalSpend, blendedRoas, newCustomer
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <h2 className="text-2xl font-sans font-medium italic text-[#1e293b]">Scorecard</h2>
+        <h2 className="text-2xl font-sans font-medium text-[#1e293b]">Scorecard</h2>
         <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Ad Performance</span>
       </div>
 

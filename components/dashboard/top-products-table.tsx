@@ -39,7 +39,7 @@ export function TopProductsTable({ products, loading }: TopProductsTableProps) {
     return (
       <ClubCard>
         <div className="flex items-center gap-3 mb-6">
-          <h3 className="text-2xl font-sans font-medium italic text-[#1e293b]">Merch</h3>
+          <h3 className="text-2xl font-sans font-medium text-[#1e293b]">Merch</h3>
           <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Top Sellers</span>
         </div>
         <div className="space-y-3">
@@ -54,7 +54,7 @@ export function TopProductsTable({ products, loading }: TopProductsTableProps) {
   return (
     <ClubCard>
       <div className="flex items-center gap-3 mb-6">
-        <h3 className="text-2xl font-sans font-medium italic text-[#1e293b]">Merch</h3>
+        <h3 className="text-2xl font-sans font-medium text-[#1e293b]">Merch</h3>
         <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Top Sellers</span>
       </div>
       {products.length === 0 ? (

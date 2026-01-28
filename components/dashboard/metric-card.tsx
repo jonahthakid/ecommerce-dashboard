@@ -27,7 +27,7 @@ export function MetricCard({ title, value, subtitle, change, isPositive = true, 
   return (
     <ClubCard className={`flex flex-col justify-between h-full relative overflow-hidden ${className}`}>
       <div className="flex justify-between items-start mb-4 relative z-10">
-        <h3 className="font-sans text-lg text-[#1e293b] font-medium italic border-b-2 border-[#ef4444] inline-block pr-4">
+        <h3 className="font-sans text-lg text-[#1e293b] font-medium border-b-2 border-[#ef4444] inline-block pr-4">
           {title}
         </h3>
         {change && <StatBadge change={change} isPositive={isPositive} />}

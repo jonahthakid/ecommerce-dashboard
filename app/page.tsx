@@ -234,7 +234,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3">
             <img src={ASSETS.logoShield} className="w-8 h-8 opacity-80" alt="SSC" />
-            <p className="font-sans italic text-[#1e293b]/60">&quot;Golf&apos;s Happiest Accident&quot;</p>
+            <p className="font-sans text-[#1e293b]/60">&quot;Golf&apos;s Happiest Accident&quot;</p>
           </div>
           <p className="font-mono text-xs font-bold uppercase text-[#1e293b]/40">
             Data synced every 6 hours via Vercel Cron
