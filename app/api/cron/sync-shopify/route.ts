@@ -4,7 +4,7 @@ import { getDailyMetrics } from '@/lib/shopify';
 import { upsertShopifyMetrics, upsertTopProducts, initDatabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 function verifyAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
