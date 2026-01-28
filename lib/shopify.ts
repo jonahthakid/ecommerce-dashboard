@@ -136,7 +136,7 @@ async function fetchAllInventoryCosts(): Promise<void> {
     let hasNextPage = true;
 
     while (hasNextPage) {
-      const endpoint = pageInfo
+      const endpoint: string = pageInfo
         ? `inventory_items.json?limit=250&page_info=${pageInfo}`
         : 'inventory_items.json?limit=250';
 
