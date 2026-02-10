@@ -1,6 +1,13 @@
-const KLAVIYO_API_KEY = process.env.KLAVIYO_API_KEY;
 const KLAVIYO_API_BASE = 'https://a.klaviyo.com/api';
 const KLAVIYO_REVISION = '2024-10-15';
+
+function getApiKey(): string {
+  const key = process.env.KLAVIYO_API_KEY;
+  if (!key) {
+    throw new Error('KLAVIYO_API_KEY not configured');
+  }
+  return key;
+}
 
 interface KlaviyoRequestOptions {
   endpoint: string;
@@ -8,9 +15,7 @@ interface KlaviyoRequestOptions {
 }
 
 async function klaviyoRequest<T>({ endpoint, params }: KlaviyoRequestOptions): Promise<T> {
-  if (!KLAVIYO_API_KEY) {
-    throw new Error('KLAVIYO_API_KEY not configured');
-  }
+  const apiKey = getApiKey();
 
   const url = new URL(`${KLAVIYO_API_BASE}${endpoint}`);
   if (params) {
@@ -21,7 +26,7 @@ async function klaviyoRequest<T>({ endpoint, params }: KlaviyoRequestOptions): P
 
   const response = await fetch(url.toString(), {
     headers: {
-      'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+      'Authorization': `Klaviyo-API-Key ${apiKey}`,
       'revision': KLAVIYO_REVISION,
       'Accept': 'application/json',
     },
@@ -172,7 +177,7 @@ export async function getLists(): Promise<Array<KlaviyoList & { profile_count: n
           `${KLAVIYO_API_BASE}/lists/${list.id}/profiles?page[size]=1`,
           {
             headers: {
-              'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+              'Authorization': `Klaviyo-API-Key ${getApiKey()}`,
               'revision': KLAVIYO_REVISION,
               'Accept': 'application/json',
             },
@@ -209,7 +214,7 @@ export async function getCampaignMetrics(startDate: string, endDate: string): Pr
       const response = await fetch(`${KLAVIYO_API_BASE}/metric-aggregates`, {
         method: 'POST',
         headers: {
-          'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+          'Authorization': `Klaviyo-API-Key ${getApiKey()}`,
           'revision': KLAVIYO_REVISION,
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -282,32 +287,194 @@ async function getMetricIdByName(name: string): Promise<string> {
   return metric.id;
 }
 
-// Get subscriber count (total across all lists, deduplicated by checking main list)
+// Get total subscriber count by counting all profiles in the account
 export async function getSubscriberCount(): Promise<number> {
   try {
-    const lists = await getLists();
-    // Return the largest list count (usually the main newsletter list)
-    const maxCount = Math.max(...lists.map((l) => l.profile_count), 0);
-    return maxCount;
+    let totalProfiles = 0;
+    let nextCursor: string | null = null;
+
+    do {
+      const params: Record<string, string> = { 'page[size]': '100' };
+      if (nextCursor) {
+        params['page[cursor]'] = nextCursor;
+      }
+
+      const response = await klaviyoRequest<{
+        data: Array<{ id: string }>;
+        links?: { next?: string };
+      }>({
+        endpoint: '/profiles',
+        params,
+      });
+
+      totalProfiles += response.data.length;
+
+      if (response.links?.next) {
+        const nextUrl = new URL(response.links.next);
+        nextCursor = nextUrl.searchParams.get('page[cursor]');
+      } else {
+        nextCursor = null;
+      }
+    } while (nextCursor && totalProfiles < 100000); // Safety limit
+
+    return totalProfiles;
   } catch (e) {
     console.error('Failed to get subscriber count:', e);
     return 0;
   }
 }
 
+// Get profiles that joined a specific list within a date range
+export async function getListSignups(
+  listId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ count: number; profileIds: string[] }> {
+  const profileIds: string[] = [];
+  let nextCursor: string | null = null;
+
+  // Format dates as ISO 8601 for filtering
+  const startISO = `${startDate}T00:00:00Z`;
+  const endISO = `${endDate}T23:59:59Z`;
+
+  do {
+    const params: Record<string, string> = {
+      'filter': `greater-or-equal(joined_group_at,${startISO}),less-than(joined_group_at,${endISO})`,
+      'page[size]': '100',
+      'fields[profile]': 'email',
+    };
+    if (nextCursor) {
+      params['page[cursor]'] = nextCursor;
+    }
+
+    const response = await klaviyoRequest<{
+      data: Array<{ id: string; attributes: { email: string } }>;
+      links?: { next?: string };
+    }>({
+      endpoint: `/lists/${listId}/profiles`,
+      params,
+    });
+
+    profileIds.push(...response.data.map((p) => p.id));
+
+    if (response.links?.next) {
+      const nextUrl = new URL(response.links.next);
+      nextCursor = nextUrl.searchParams.get('page[cursor]');
+    } else {
+      nextCursor = null;
+    }
+  } while (nextCursor && profileIds.length < 10000); // Safety limit
+
+  return { count: profileIds.length, profileIds };
+}
+
+// Get new profiles created on a specific date
+export async function getDailyUniqueSignups(date: string): Promise<number> {
+  try {
+    // Klaviyo uses greater-than and less-than for date filtering
+    const startISO = `${date}T00:00:00Z`;
+    const endISO = `${date}T23:59:59Z`;
+
+    let count = 0;
+    let nextCursor: string | null = null;
+
+    do {
+      const params: Record<string, string> = {
+        'filter': `greater-than(created,${startISO}),less-than(created,${endISO})`,
+        'page[size]': '100',
+      };
+      if (nextCursor) {
+        params['page[cursor]'] = nextCursor;
+      }
+
+      const response = await klaviyoRequest<{
+        data: Array<{ id: string }>;
+        links?: { next?: string };
+      }>({
+        endpoint: '/profiles',
+        params,
+      });
+
+      count += response.data.length;
+
+      if (response.links?.next) {
+        const nextUrl = new URL(response.links.next);
+        nextCursor = nextUrl.searchParams.get('page[cursor]');
+      } else {
+        nextCursor = null;
+      }
+    } while (nextCursor && count < 10000); // Safety limit
+
+    return count;
+  } catch (e) {
+    console.error('Failed to get daily unique signups:', e);
+    return 0;
+  }
+}
+
+// Get new profiles created within a date range (more efficient for multi-day queries)
+export async function getSignupsInRange(startDate: string, endDate: string): Promise<{
+  total: number;
+  byDate: Record<string, number>;
+}> {
+  try {
+    const startISO = `${startDate}T00:00:00Z`;
+    const endISO = `${endDate}T23:59:59Z`;
+
+    const profiles: Array<{ created: string }> = [];
+    let nextCursor: string | null = null;
+
+    do {
+      const params: Record<string, string> = {
+        'filter': `greater-than(created,${startISO}),less-than(created,${endISO})`,
+        'page[size]': '100',
+        'fields[profile]': 'created',
+      };
+      if (nextCursor) {
+        params['page[cursor]'] = nextCursor;
+      }
+
+      const response = await klaviyoRequest<{
+        data: Array<{ id: string; attributes: { created: string } }>;
+        links?: { next?: string };
+      }>({
+        endpoint: '/profiles',
+        params,
+      });
+
+      profiles.push(...response.data.map((p) => ({ created: p.attributes.created })));
+
+      if (response.links?.next) {
+        const nextUrl = new URL(response.links.next);
+        nextCursor = nextUrl.searchParams.get('page[cursor]');
+      } else {
+        nextCursor = null;
+      }
+    } while (nextCursor && profiles.length < 10000); // Safety limit
+
+    // Group by date
+    const byDate: Record<string, number> = {};
+    for (const profile of profiles) {
+      const date = profile.created.split('T')[0];
+      byDate[date] = (byDate[date] || 0) + 1;
+    }
+
+    return {
+      total: profiles.length,
+      byDate,
+    };
+  } catch (e) {
+    console.error('Failed to get signups in range:', e);
+    return { total: 0, byDate: {} };
+  }
+}
+
 // Get all Klaviyo metrics for dashboard
 export async function getKlaviyoMetrics(startDate: string, endDate: string) {
-  const [campaigns, flows, lists, campaignMetrics] = await Promise.all([
+  const [campaigns, flows, subscriberCount] = await Promise.all([
     getCampaigns().catch(() => []),
     getFlows().catch(() => []),
-    getLists().catch(() => []),
-    getCampaignMetrics(startDate, endDate).catch(() => ({
-      sent: 0,
-      opened: 0,
-      clicked: 0,
-      bounced: 0,
-      unsubscribed: 0,
-    })),
+    getSubscriberCount().catch(() => 0),
   ]);
 
   // Filter to sent campaigns in date range
@@ -320,27 +487,20 @@ export async function getKlaviyoMetrics(startDate: string, endDate: string) {
   // Active flows
   const activeFlows = flows.filter((f) => f.attributes.status === 'Live' && !f.attributes.archived);
 
-  // Total subscribers (from largest list)
-  const subscriberCount = Math.max(...lists.map((l) => l.profile_count), 0);
-
   return {
     campaigns: {
       total: sentCampaigns.length,
-      sent: campaignMetrics.sent,
-      opened: campaignMetrics.opened,
-      clicked: campaignMetrics.clicked,
-      openRate: campaignMetrics.sent > 0 ? (campaignMetrics.opened / campaignMetrics.sent) * 100 : 0,
-      clickRate: campaignMetrics.sent > 0 ? (campaignMetrics.clicked / campaignMetrics.sent) * 100 : 0,
+      sent: 0,
+      opened: 0,
+      clicked: 0,
+      openRate: 0,
+      clickRate: 0,
     },
     flows: {
       active: activeFlows.length,
       total: flows.length,
     },
     subscribers: subscriberCount,
-    lists: lists.map((l) => ({
-      id: l.id,
-      name: l.attributes.name,
-      count: l.profile_count,
-    })),
+    lists: [],
   };
 }

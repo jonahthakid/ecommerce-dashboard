@@ -45,6 +45,13 @@ export interface KlaviyoMetrics {
   synced_at: string;
 }
 
+export interface KlaviyoDailySignups {
+  id: number;
+  date: string;
+  unique_signups: number;
+  synced_at: string;
+}
+
 // Initialize database tables
 export async function initDatabase() {
   await sql`
@@ -103,6 +110,15 @@ export async function initDatabase() {
       click_rate DECIMAL(5,2) DEFAULT 0,
       active_flows INTEGER DEFAULT 0,
       subscriber_count INTEGER DEFAULT 0,
+      synced_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS klaviyo_daily_signups (
+      id SERIAL PRIMARY KEY,
+      date DATE UNIQUE NOT NULL,
+      unique_signups INTEGER DEFAULT 0,
       synced_at TIMESTAMP DEFAULT NOW()
     )
   `;
@@ -216,13 +232,34 @@ export async function getKlaviyoMetrics(startDate: string, endDate: string) {
   return result.rows;
 }
 
+// Klaviyo daily signups
+export async function upsertDailySignups(date: string, uniqueSignups: number) {
+  return sql`
+    INSERT INTO klaviyo_daily_signups (date, unique_signups)
+    VALUES (${date}, ${uniqueSignups})
+    ON CONFLICT (date) DO UPDATE SET
+      unique_signups = EXCLUDED.unique_signups,
+      synced_at = NOW()
+  `;
+}
+
+export async function getDailySignupsRange(startDate: string, endDate: string) {
+  const result = await sql<KlaviyoDailySignups>`
+    SELECT * FROM klaviyo_daily_signups
+    WHERE date >= ${startDate} AND date <= ${endDate}
+    ORDER BY date ASC
+  `;
+  return result.rows;
+}
+
 // Aggregated queries
 export async function getAggregatedMetrics(startDate: string, endDate: string) {
-  const [shopify, ads, topProducts, klaviyo] = await Promise.all([
+  const [shopify, ads, topProducts, klaviyo, dailySignups] = await Promise.all([
     getShopifyMetrics(startDate, endDate),
     getAdMetrics(startDate, endDate),
     getTopProducts(startDate, endDate),
     getKlaviyoMetrics(startDate, endDate),
+    getDailySignupsRange(startDate, endDate),
   ]);
 
   // Calculate totals
@@ -276,6 +313,9 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
 
   const latestKlaviyo = klaviyo[0]; // Most recent day for current counts
 
+  // Calculate email signups totals
+  const totalSignups = dailySignups.reduce((sum, day) => sum + day.unique_signups, 0);
+
   return {
     shopify: {
       ...shopifyTotals,
@@ -299,6 +339,13 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
       active_flows: latestKlaviyo?.active_flows || 0,
       subscriber_count: latestKlaviyo?.subscriber_count || 0,
       daily: klaviyo,
+      email_signups: {
+        total: totalSignups,
+        daily: dailySignups.map((d) => ({
+          date: d.date,
+          signups: d.unique_signups,
+        })),
+      },
     },
   };
 }

@@ -3,14 +3,11 @@
 import { MetricCard } from './metric-card';
 
 interface KlaviyoMetrics {
-  campaigns_sent: number;
-  emails_sent: number;
-  emails_opened: number;
-  emails_clicked: number;
-  open_rate: number;
-  click_rate: number;
-  active_flows: number;
   subscriber_count: number;
+  email_signups?: {
+    total: number;
+    daily: Array<{ date: string; signups: number }>;
+  };
 }
 
 interface KlaviyoSectionProps {
@@ -27,39 +24,22 @@ export function KlaviyoSection({ metrics, loading }: KlaviyoSectionProps) {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <h2 className="text-2xl font-sans font-medium text-[#1e293b]">Clubhouse</h2>
-        <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Email & SMS</span>
+        <span className="font-mono text-xs font-bold text-[#ef4444] uppercase tracking-wider">Email</span>
       </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2">
         <MetricCard
-          title="Subscribers"
+          title="New Signups"
+          value={metrics?.email_signups ? formatNumber(metrics.email_signups.total) : '-'}
+          subtitle="This period"
+          loading={loading}
+        />
+        <MetricCard
+          title="Total Subscribers"
           value={metrics ? formatNumber(metrics.subscriber_count) : '-'}
-          subtitle="Total List Size"
-          loading={loading}
-        />
-        <MetricCard
-          title="Emails Sent"
-          value={metrics ? formatNumber(metrics.emails_sent) : '-'}
-          subtitle={metrics ? `${metrics.campaigns_sent} campaigns` : 'Campaigns'}
-          loading={loading}
-        />
-        <MetricCard
-          title="Open Rate"
-          value={metrics ? `${metrics.open_rate.toFixed(1)}%` : '-'}
-          subtitle={metrics ? `${formatNumber(metrics.emails_opened)} opened` : 'Opened'}
-          loading={loading}
-        />
-        <MetricCard
-          title="Click Rate"
-          value={metrics ? `${metrics.click_rate.toFixed(1)}%` : '-'}
-          subtitle={metrics ? `${formatNumber(metrics.emails_clicked)} clicked` : 'Clicked'}
+          subtitle="All time"
           loading={loading}
         />
       </div>
-      {metrics && metrics.active_flows > 0 && (
-        <div className="text-xs font-mono font-bold text-[#1e293b]/60 uppercase tracking-wider">
-          {metrics.active_flows} active flows running
-        </div>
-      )}
     </div>
   );
 }
