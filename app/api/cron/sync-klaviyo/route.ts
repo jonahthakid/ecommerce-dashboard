@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { format, subDays } from 'date-fns';
-import { getKlaviyoMetrics as fetchKlaviyoMetrics } from '@/lib/klaviyo';
-import { upsertKlaviyoMetrics, initDatabase } from '@/lib/db';
+import { getKlaviyoMetrics as fetchKlaviyoMetrics, getDailyUniqueSignups } from '@/lib/klaviyo';
+import { upsertKlaviyoMetrics, upsertDailySignups, initDatabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function verifyAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
   try {
     await initDatabase();
 
-    const today = format(new Date(), 'yyyy-MM-dd');
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
     // Fetch Klaviyo metrics for yesterday (complete day)
@@ -44,6 +43,20 @@ export async function GET(request: NextRequest) {
       subscriber_count: metrics.subscribers,
     });
 
+    // Sync daily signups for the last 7 days
+    const signupResults: Record<string, number> = {};
+    for (let i = 1; i <= 7; i++) {
+      const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
+      try {
+        const signups = await getDailyUniqueSignups(date);
+        await upsertDailySignups(date, signups);
+        signupResults[date] = signups;
+      } catch (e) {
+        console.error(`Failed to sync signups for ${date}:`, e);
+        signupResults[date] = 0;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       platform: 'klaviyo',
@@ -55,6 +68,7 @@ export async function GET(request: NextRequest) {
         click_rate: `${metrics.campaigns.clickRate.toFixed(1)}%`,
         active_flows: metrics.flows.active,
         subscriber_count: metrics.subscribers,
+        daily_signups: signupResults,
       },
       timestamp: new Date().toISOString(),
     });
