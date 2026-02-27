@@ -45,9 +45,40 @@ export async function GET(request: NextRequest) {
     };
   }
 
+  // 3. Try relationships endpoint and profiles with count param
+  let relCheck = null;
+  let profilesTotal = null;
+  if (lists.length > 0) {
+    const listId = lists[0].id;
+
+    const relRes = await fetch(
+      `https://a.klaviyo.com/api/lists/${listId}/relationships/profiles?page[size]=1`,
+      { headers }
+    );
+    const relData = await relRes.json();
+    relCheck = {
+      meta: relData.meta || null,
+      dataCount: relData.data?.length || 0,
+      keys: Object.keys(relData),
+    };
+
+    // Try profiles endpoint with additional fields
+    const profTotalRes = await fetch(
+      `https://a.klaviyo.com/api/profiles?page[size]=1&additional-fields[profile]=`,
+      { headers }
+    );
+    const profTotalData = await profTotalRes.json();
+    profilesTotal = {
+      meta: profTotalData.meta || null,
+      keys: Object.keys(profTotalData),
+    };
+  }
+
   return NextResponse.json({
     listCount: lists.length,
     listNames: lists.map((l: { attributes?: { name?: string } }) => l.attributes?.name),
     profileCheck,
+    relCheck,
+    profilesTotal,
   });
 }
