@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { format, subDays } from 'date-fns';
-import { getKlaviyoMetrics as fetchKlaviyoMetrics, getDailyUniqueSignups } from '@/lib/klaviyo';
-import { upsertKlaviyoMetrics, upsertDailySignups, initDatabase } from '@/lib/db';
+import { getCampaigns, getFlows, getCampaignMetrics, getDailyUniqueSignups } from '@/lib/klaviyo';
+import { upsertKlaviyoMetrics, upsertDailySignups, getKlaviyoMetrics as getDbKlaviyoMetrics, initDatabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -27,20 +27,43 @@ export async function GET(request: NextRequest) {
 
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
-    // Fetch Klaviyo metrics for yesterday (complete day)
-    const metrics = await fetchKlaviyoMetrics(yesterday, yesterday);
+    // Fetch campaign and flow data (fast API calls)
+    const [campaigns, flows, campaignMetrics] = await Promise.all([
+      getCampaigns().catch(() => []),
+      getFlows().catch(() => []),
+      getCampaignMetrics(yesterday, yesterday).catch(() => ({ sent: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0 })),
+    ]);
+
+    const sentCampaigns = campaigns.filter((c) => {
+      if (!c.attributes.send_time) return false;
+      const sendDate = c.attributes.send_time.split('T')[0];
+      return sendDate === yesterday && c.attributes.status === 'Sent';
+    });
+
+    const activeFlows = flows.filter((f) => f.attributes.status === 'Live' && !f.attributes.archived);
+    const openRate = campaignMetrics.sent > 0 ? (campaignMetrics.opened / campaignMetrics.sent) * 100 : 0;
+    const clickRate = campaignMetrics.sent > 0 ? (campaignMetrics.clicked / campaignMetrics.sent) * 100 : 0;
+
+    // Get last known subscriber count from DB instead of slow API pagination
+    const existingMetrics = await getDbKlaviyoMetrics(
+      format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+      yesterday
+    );
+    const lastKnownCount = existingMetrics.length > 0
+      ? existingMetrics[0].subscriber_count
+      : 30556; // Fallback from initial backfill
 
     // Store the metrics
     await upsertKlaviyoMetrics({
       date: yesterday,
-      campaigns_sent: metrics.campaigns.total,
-      emails_sent: metrics.campaigns.sent,
-      emails_opened: metrics.campaigns.opened,
-      emails_clicked: metrics.campaigns.clicked,
-      open_rate: metrics.campaigns.openRate,
-      click_rate: metrics.campaigns.clickRate,
-      active_flows: metrics.flows.active,
-      subscriber_count: metrics.subscribers,
+      campaigns_sent: sentCampaigns.length,
+      emails_sent: campaignMetrics.sent,
+      emails_opened: campaignMetrics.opened,
+      emails_clicked: campaignMetrics.clicked,
+      open_rate: openRate,
+      click_rate: clickRate,
+      active_flows: activeFlows.length,
+      subscriber_count: lastKnownCount,
     });
 
     // Sync daily signups for the last 7 days
@@ -62,12 +85,12 @@ export async function GET(request: NextRequest) {
       platform: 'klaviyo',
       synced: {
         date: yesterday,
-        campaigns_sent: metrics.campaigns.total,
-        emails_sent: metrics.campaigns.sent,
-        open_rate: `${metrics.campaigns.openRate.toFixed(1)}%`,
-        click_rate: `${metrics.campaigns.clickRate.toFixed(1)}%`,
-        active_flows: metrics.flows.active,
-        subscriber_count: metrics.subscribers,
+        campaigns_sent: sentCampaigns.length,
+        emails_sent: campaignMetrics.sent,
+        open_rate: `${openRate.toFixed(1)}%`,
+        click_rate: `${clickRate.toFixed(1)}%`,
+        active_flows: activeFlows.length,
+        subscriber_count: lastKnownCount,
         daily_signups: signupResults,
       },
       timestamp: new Date().toISOString(),

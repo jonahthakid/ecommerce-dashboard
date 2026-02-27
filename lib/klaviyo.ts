@@ -287,15 +287,38 @@ async function getMetricIdByName(name: string): Promise<string> {
   return metric.id;
 }
 
-// Get total subscriber count using lists profile counts
+// Get total subscriber count by paginating through all profiles
+// This is slow (~30k profiles) so should only be called from endpoints with long timeouts
 export async function getSubscriberCount(): Promise<number> {
   try {
-    const lists = await getLists();
-    if (lists.length > 0) {
-      // Return the largest list count as the subscriber total
-      return Math.max(...lists.map(l => l.profile_count));
-    }
-    return 0;
+    let totalProfiles = 0;
+    let nextCursor: string | null = null;
+
+    do {
+      const params: Record<string, string> = { 'page[size]': '100' };
+      if (nextCursor) {
+        params['page[cursor]'] = nextCursor;
+      }
+
+      const response = await klaviyoRequest<{
+        data: Array<{ id: string }>;
+        links?: { next?: string };
+      }>({
+        endpoint: '/profiles',
+        params,
+      });
+
+      totalProfiles += response.data.length;
+
+      if (response.links?.next) {
+        const nextUrl = new URL(response.links.next);
+        nextCursor = nextUrl.searchParams.get('page[cursor]');
+      } else {
+        nextCursor = null;
+      }
+    } while (nextCursor && totalProfiles < 100000);
+
+    return totalProfiles;
   } catch (e) {
     console.error('Failed to get subscriber count:', e);
     return 0;
