@@ -287,43 +287,15 @@ async function getMetricIdByName(name: string): Promise<string> {
   return metric.id;
 }
 
-// Get total subscriber count using a single API call
+// Get total subscriber count using lists profile counts
 export async function getSubscriberCount(): Promise<number> {
   try {
-    // Fetch just 1 profile to get the total count from the response
-    const response = await fetch(
-      `${KLAVIYO_API_BASE}/profiles?page[size]=1`,
-      {
-        headers: {
-          'Authorization': `Klaviyo-API-Key ${getApiKey()}`,
-          'revision': KLAVIYO_REVISION,
-          'Accept': 'application/json',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Klaviyo API error ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Klaviyo returns total count in the page cursor metadata
-    // If no total in meta, fall back to counting via a reasonable estimate
-    if (data.meta?.page_info?.count != null) {
-      return data.meta.page_info.count;
-    }
-
-    // Fallback: check if there's a total in the links
-    // If we only got 1 result and there's a next page, we need the count differently
-    // Use the lists endpoint to sum up list members as an approximation
     const lists = await getLists();
     if (lists.length > 0) {
-      // Return the largest list count as a reasonable subscriber estimate
+      // Return the largest list count as the subscriber total
       return Math.max(...lists.map(l => l.profile_count));
     }
-
-    return data.data?.length || 0;
+    return 0;
   } catch (e) {
     console.error('Failed to get subscriber count:', e);
     return 0;
