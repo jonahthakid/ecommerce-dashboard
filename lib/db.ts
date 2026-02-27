@@ -53,6 +53,16 @@ export interface KlaviyoDailySignups {
   synced_at: string;
 }
 
+export interface InstagramMetrics {
+  id: number;
+  date: string;
+  followers: number;
+  reach: number;
+  impressions: number;
+  accounts_engaged: number;
+  synced_at: string;
+}
+
 // Initialize database tables
 export async function initDatabase() {
   await sql`
@@ -121,6 +131,18 @@ export async function initDatabase() {
       id SERIAL PRIMARY KEY,
       date DATE UNIQUE NOT NULL,
       unique_signups INTEGER DEFAULT 0,
+      synced_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS instagram_metrics (
+      id SERIAL PRIMARY KEY,
+      date DATE UNIQUE NOT NULL,
+      followers INTEGER DEFAULT 0,
+      reach INTEGER DEFAULT 0,
+      impressions INTEGER DEFAULT 0,
+      accounts_engaged INTEGER DEFAULT 0,
       synced_at TIMESTAMP DEFAULT NOW()
     )
   `;
@@ -255,6 +277,29 @@ export async function getDailySignupsRange(startDate: string, endDate: string) {
   return result.rows;
 }
 
+// Instagram metrics
+export async function upsertInstagramMetrics(data: Omit<InstagramMetrics, 'id' | 'synced_at'>) {
+  return sql`
+    INSERT INTO instagram_metrics (date, followers, reach, impressions, accounts_engaged)
+    VALUES (${data.date}, ${data.followers}, ${data.reach}, ${data.impressions}, ${data.accounts_engaged})
+    ON CONFLICT (date) DO UPDATE SET
+      followers = EXCLUDED.followers,
+      reach = EXCLUDED.reach,
+      impressions = EXCLUDED.impressions,
+      accounts_engaged = EXCLUDED.accounts_engaged,
+      synced_at = NOW()
+  `;
+}
+
+export async function getInstagramMetrics(startDate: string, endDate: string) {
+  const result = await sql<InstagramMetrics>`
+    SELECT * FROM instagram_metrics
+    WHERE date >= ${startDate} AND date <= ${endDate}
+    ORDER BY date DESC
+  `;
+  return result.rows;
+}
+
 // Aggregated queries
 export async function getAggregatedMetrics(startDate: string, endDate: string) {
   // Calculate YoY comparison dates (same period, one year ago)
@@ -265,16 +310,18 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
   const yoyStart = yoyStartDate.toISOString().split('T')[0];
   const yoyEnd = yoyEndDate.toISOString().split('T')[0];
 
-  const [shopify, ads, topProducts, klaviyo, dailySignups, yoyShopify, yoyAds, yoyKlaviyo, yoySignups] = await Promise.all([
+  const [shopify, ads, topProducts, klaviyo, dailySignups, instagram, yoyShopify, yoyAds, yoyKlaviyo, yoySignups, yoyInstagram] = await Promise.all([
     getShopifyMetrics(startDate, endDate),
     getAdMetrics(startDate, endDate),
     getTopProducts(startDate, endDate),
     getKlaviyoMetrics(startDate, endDate),
     getDailySignupsRange(startDate, endDate),
+    getInstagramMetrics(startDate, endDate),
     getShopifyMetrics(yoyStart, yoyEnd),
     getAdMetrics(yoyStart, yoyEnd),
     getKlaviyoMetrics(yoyStart, yoyEnd),
     getDailySignupsRange(yoyStart, yoyEnd),
+    getInstagramMetrics(yoyStart, yoyEnd),
   ]);
 
   // Calculate totals
@@ -383,6 +430,35 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
   const subscriberYoy = calcYoy(currentSubscriberCount, yoySubscriberCount);
   const signupsYoy = calcYoy(totalSignups, yoyTotalSignups);
 
+  // Instagram totals
+  const instagramTotals = instagram.reduce(
+    (acc, day) => ({
+      reach: acc.reach + day.reach,
+      impressions: acc.impressions + day.impressions,
+      accounts_engaged: acc.accounts_engaged + day.accounts_engaged,
+    }),
+    { reach: 0, impressions: 0, accounts_engaged: 0 }
+  );
+  const latestInstagram = instagram[0]; // Most recent day for follower count
+
+  // Instagram YoY
+  const yoyInstagramTotals = yoyInstagram.reduce(
+    (acc, day) => ({
+      reach: acc.reach + day.reach,
+      impressions: acc.impressions + day.impressions,
+      accounts_engaged: acc.accounts_engaged + day.accounts_engaged,
+    }),
+    { reach: 0, impressions: 0, accounts_engaged: 0 }
+  );
+  const yoyLatestInstagram = yoyInstagram[0];
+
+  const instagramYoy = {
+    followers: calcYoy(latestInstagram?.followers || 0, yoyLatestInstagram?.followers || 0),
+    reach: calcYoy(instagramTotals.reach, yoyInstagramTotals.reach),
+    impressions: calcYoy(instagramTotals.impressions, yoyInstagramTotals.impressions),
+    accounts_engaged: calcYoy(instagramTotals.accounts_engaged, yoyInstagramTotals.accounts_engaged),
+  };
+
   return {
     shopify: {
       ...shopifyTotals,
@@ -418,6 +494,13 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
         yoy: signupsYoy,
       },
       subscriber_yoy: subscriberYoy,
+    },
+    instagram: {
+      followers: latestInstagram?.followers || 0,
+      reach: instagramTotals.reach,
+      impressions: instagramTotals.impressions,
+      accounts_engaged: instagramTotals.accounts_engaged,
+      yoy: instagramYoy,
     },
   };
 }

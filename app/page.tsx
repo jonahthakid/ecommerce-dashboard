@@ -7,6 +7,7 @@ import { AdSpendSection } from '@/components/dashboard/ad-spend-section';
 import { TopProductsTable } from '@/components/dashboard/top-products-table';
 import { TrendChart } from '@/components/dashboard/trend-chart';
 import { KlaviyoSection } from '@/components/dashboard/klaviyo-section';
+import { InstagramSection } from '@/components/dashboard/instagram-section';
 import { RefreshCw, Trophy, Search, Menu } from 'lucide-react';
 
 const ASSETS = {
@@ -80,6 +81,18 @@ interface Metrics {
       yoy: number | null;
     };
     subscriber_yoy?: number | null;
+  };
+  instagram: {
+    followers: number;
+    reach: number;
+    impressions: number;
+    accounts_engaged: number;
+    yoy?: {
+      followers: number | null;
+      reach: number | null;
+      impressions: number | null;
+      accounts_engaged: number | null;
+    };
   };
 }
 
@@ -239,6 +252,12 @@ export default function Dashboard() {
         {/* Klaviyo Email */}
         <KlaviyoSection
           metrics={metrics?.klaviyo || null}
+          loading={loading}
+        />
+
+        {/* Instagram */}
+        <InstagramSection
+          metrics={metrics?.instagram || null}
           loading={loading}
         />
 

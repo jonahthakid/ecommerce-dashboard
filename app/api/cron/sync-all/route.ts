@@ -6,7 +6,8 @@ import { getDailyMetrics as getGoogleMetrics } from '@/lib/google-ads';
 import { getDailyMetrics as getTiktokMetrics } from '@/lib/tiktok';
 import { getDailyMetrics as getSnapchatMetrics } from '@/lib/snapchat';
 import { getKlaviyoMetrics as fetchKlaviyoMetrics } from '@/lib/klaviyo';
-import { upsertShopifyMetrics, upsertTopProducts, upsertAdMetrics, upsertKlaviyoMetrics, initDatabase } from '@/lib/db';
+import { getDailyMetrics as getInstagramMetrics } from '@/lib/instagram';
+import { upsertShopifyMetrics, upsertTopProducts, upsertAdMetrics, upsertKlaviyoMetrics, upsertInstagramMetrics, initDatabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -98,6 +99,18 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Klaviyo sync error:', error);
       results['klaviyo'] = { status: 'error', error: String(error) };
+    }
+
+    // Sync Instagram
+    for (const date of [yesterday, today]) {
+      try {
+        const igMetrics = await getInstagramMetrics(date);
+        await upsertInstagramMetrics(igMetrics);
+        results[`instagram_${date}`] = { status: 'synced', followers: igMetrics.followers, reach: igMetrics.reach };
+      } catch (error) {
+        console.error(`Instagram sync error for ${date}:`, error);
+        results[`instagram_${date}`] = { status: 'error', error: String(error) };
+      }
     }
 
     return NextResponse.json({
