@@ -45,7 +45,7 @@ export async function getAccountInsights(date: string) {
   const until = Math.floor(nextDay.getTime() / 1000);
 
   const data = await igFetch<IgInsightsResponse>(
-    `${INSTAGRAM_BUSINESS_ACCOUNT_ID}/insights?metric=reach,impressions,accounts_engaged&period=day&since=${since}&until=${until}`
+    `${INSTAGRAM_BUSINESS_ACCOUNT_ID}/insights?metric=reach,views,accounts_engaged&period=day&since=${since}&until=${until}`
   );
 
   const metrics: Record<string, number> = {};
@@ -55,7 +55,7 @@ export async function getAccountInsights(date: string) {
 
   return {
     reach: metrics.reach ?? 0,
-    impressions: metrics.impressions ?? 0,
+    impressions: metrics.views ?? 0,
     accounts_engaged: metrics.accounts_engaged ?? 0,
   };
 }
