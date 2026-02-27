@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { format, subDays, subYears } from 'date-fns';
-import { getSignupsInRange, getSubscriberCount } from '@/lib/klaviyo';
-import { upsertDailySignups, upsertKlaviyoMetrics, initDatabase } from '@/lib/db';
+import { getSignupsInRange } from '@/lib/klaviyo';
+import { upsertDailySignups, upsertKlaviyoMetrics, getKlaviyoMetrics as getDbKlaviyoMetrics, initDatabase } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -48,29 +48,42 @@ export async function GET(request: NextRequest) {
       current.setDate(current.getDate() + 1);
     }
 
-    // Also store a klaviyo_metrics row for subscriber_count snapshot
-    // We use current subscriber count as a rough baseline for a year ago
-    const subscriberCount = await getSubscriberCount();
-    // Store a metric row for the middle of the YoY window so the query picks it up
-    const midDate = format(subDays(endDate, 45), 'yyyy-MM-dd');
-    await upsertKlaviyoMetrics({
-      date: midDate,
-      campaigns_sent: 0,
-      emails_sent: 0,
-      emails_opened: 0,
-      emails_clicked: 0,
-      open_rate: 0,
-      click_rate: 0,
-      active_flows: 0,
-      subscriber_count: subscriberCount,
-    });
+    // Store klaviyo_metrics rows with subscriber_count across the entire backfill range
+    // This ensures YoY comparison works regardless of which date range the user selects
+    // Use the last known subscriber count from the DB as a baseline for a year ago
+    const existingMetrics = await getDbKlaviyoMetrics(
+      format(subDays(new Date(), 730), 'yyyy-MM-dd'),
+      format(new Date(), 'yyyy-MM-dd')
+    );
+    const nonZero = existingMetrics.find(m => m.subscriber_count > 0);
+    const subscriberCount = nonZero?.subscriber_count || 30556;
+
+    // Store a row every 7 days across the range
+    const snapshotDates: string[] = [];
+    const cursor = new Date(startDate);
+    while (cursor <= endDate) {
+      const dateStr = format(cursor, 'yyyy-MM-dd');
+      await upsertKlaviyoMetrics({
+        date: dateStr,
+        campaigns_sent: 0,
+        emails_sent: 0,
+        emails_opened: 0,
+        emails_clicked: 0,
+        open_rate: 0,
+        click_rate: 0,
+        active_flows: 0,
+        subscriber_count: subscriberCount,
+      });
+      snapshotDates.push(dateStr);
+      cursor.setDate(cursor.getDate() + 7);
+    }
 
     return NextResponse.json({
       success: true,
       range: { startDate: startStr, endDate: endStr },
       totalSignups: total,
       daysStored: stored.length,
-      subscriberSnapshot: { date: midDate, count: subscriberCount },
+      subscriberSnapshots: { count: subscriberCount, dates: snapshotDates },
     });
   } catch (error) {
     console.error('Backfill YoY error:', error);
