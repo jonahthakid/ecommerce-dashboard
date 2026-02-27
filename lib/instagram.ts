@@ -5,7 +5,8 @@ interface IgInsightsResponse {
   data: Array<{
     name: string;
     period: string;
-    values: Array<{ value: number; end_time: string }>;
+    total_value?: { value: number };
+    values?: Array<{ value: number; end_time: string }>;
   }>;
 }
 
@@ -45,12 +46,12 @@ export async function getAccountInsights(date: string) {
   const until = Math.floor(nextDay.getTime() / 1000);
 
   const data = await igFetch<IgInsightsResponse>(
-    `${INSTAGRAM_BUSINESS_ACCOUNT_ID}/insights?metric=reach,views,accounts_engaged&period=day&since=${since}&until=${until}`
+    `${INSTAGRAM_BUSINESS_ACCOUNT_ID}/insights?metric=reach,views,accounts_engaged&period=day&metric_type=total_value&since=${since}&until=${until}`
   );
 
   const metrics: Record<string, number> = {};
   for (const item of data.data) {
-    metrics[item.name] = item.values[0]?.value ?? 0;
+    metrics[item.name] = item.total_value?.value ?? item.values?.[0]?.value ?? 0;
   }
 
   return {
