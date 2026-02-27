@@ -7,7 +7,9 @@ interface KlaviyoMetrics {
   email_signups?: {
     total: number;
     daily: Array<{ date: string; signups: number }>;
+    yoy: number | null;
   };
+  subscriber_yoy?: number | null;
 }
 
 interface KlaviyoSectionProps {
@@ -19,7 +21,16 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
+function formatYoy(yoy: number | null | undefined): string | undefined {
+  if (yoy == null) return undefined;
+  const sign = yoy >= 0 ? '+' : '';
+  return `${sign}${yoy.toFixed(1)}% YoY`;
+}
+
 export function KlaviyoSection({ metrics, loading }: KlaviyoSectionProps) {
+  const signupsYoy = metrics?.email_signups?.yoy;
+  const subscriberYoy = metrics?.subscriber_yoy;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -31,12 +42,16 @@ export function KlaviyoSection({ metrics, loading }: KlaviyoSectionProps) {
           title="New Signups"
           value={metrics?.email_signups ? formatNumber(metrics.email_signups.total) : '-'}
           subtitle="This period"
+          change={formatYoy(signupsYoy)}
+          isPositive={signupsYoy != null ? signupsYoy >= 0 : true}
           loading={loading}
         />
         <MetricCard
           title="Total Subscribers"
           value={metrics ? formatNumber(metrics.subscriber_count) : '-'}
           subtitle="All time"
+          change={formatYoy(subscriberYoy)}
+          isPositive={subscriberYoy != null ? subscriberYoy >= 0 : true}
           loading={loading}
         />
       </div>

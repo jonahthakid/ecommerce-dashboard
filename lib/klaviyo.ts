@@ -471,10 +471,11 @@ export async function getSignupsInRange(startDate: string, endDate: string): Pro
 
 // Get all Klaviyo metrics for dashboard
 export async function getKlaviyoMetrics(startDate: string, endDate: string) {
-  const [campaigns, flows, subscriberCount] = await Promise.all([
+  const [campaigns, flows, subscriberCount, campaignMetrics] = await Promise.all([
     getCampaigns().catch(() => []),
     getFlows().catch(() => []),
     getSubscriberCount().catch(() => 0),
+    getCampaignMetrics(startDate, endDate).catch(() => ({ sent: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0 })),
   ]);
 
   // Filter to sent campaigns in date range
@@ -487,14 +488,17 @@ export async function getKlaviyoMetrics(startDate: string, endDate: string) {
   // Active flows
   const activeFlows = flows.filter((f) => f.attributes.status === 'Live' && !f.attributes.archived);
 
+  const openRate = campaignMetrics.sent > 0 ? (campaignMetrics.opened / campaignMetrics.sent) * 100 : 0;
+  const clickRate = campaignMetrics.sent > 0 ? (campaignMetrics.clicked / campaignMetrics.sent) * 100 : 0;
+
   return {
     campaigns: {
       total: sentCampaigns.length,
-      sent: 0,
-      opened: 0,
-      clicked: 0,
-      openRate: 0,
-      clickRate: 0,
+      sent: campaignMetrics.sent,
+      opened: campaignMetrics.opened,
+      clicked: campaignMetrics.clicked,
+      openRate,
+      clickRate,
     },
     flows: {
       active: activeFlows.length,

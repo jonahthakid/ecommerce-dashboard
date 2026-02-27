@@ -6,6 +6,7 @@ import { ShopifySection } from '@/components/dashboard/shopify-section';
 import { AdSpendSection } from '@/components/dashboard/ad-spend-section';
 import { TopProductsTable } from '@/components/dashboard/top-products-table';
 import { TrendChart } from '@/components/dashboard/trend-chart';
+import { KlaviyoSection } from '@/components/dashboard/klaviyo-section';
 import { RefreshCw, Trophy, Search, Menu } from 'lucide-react';
 
 const ASSETS = {
@@ -33,8 +34,10 @@ interface Metrics {
       platform: string;
       spend: number;
       roas: number;
+      paid_reach: number;
     }>;
     totalSpend: number;
+    totalReach: number;
     blendedRoas: number;
     daily: Array<{
       date: string;
@@ -58,6 +61,12 @@ interface Metrics {
     click_rate: number;
     active_flows: number;
     subscriber_count: number;
+    email_signups?: {
+      total: number;
+      daily: Array<{ date: string; signups: number }>;
+      yoy: number | null;
+    };
+    subscriber_yoy?: number | null;
   };
 }
 
@@ -207,8 +216,15 @@ export default function Dashboard() {
         <AdSpendSection
           platforms={metrics?.ads.platforms || []}
           totalSpend={metrics?.ads.totalSpend || 0}
+          totalReach={metrics?.ads.totalReach || 0}
           blendedRoas={metrics?.ads.blendedRoas || 0}
           newCustomerOrders={metrics?.shopify.new_customer_orders || 0}
+          loading={loading}
+        />
+
+        {/* Klaviyo Email */}
+        <KlaviyoSection
+          metrics={metrics?.klaviyo || null}
           loading={loading}
         />
 

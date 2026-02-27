@@ -65,6 +65,7 @@ export async function getDailyMetrics(date: string) {
         platform: 'google' as const,
         spend: 0,
         roas: 0,
+        paid_reach: 0,
       };
     }
 
@@ -73,6 +74,7 @@ export async function getDailyMetrics(date: string) {
       platform: 'google' as const,
       spend: row.spend,
       roas: row.roas,
+      paid_reach: 0,
     };
   } catch (error) {
     console.error('Google Sheets fetch error:', error);
@@ -81,6 +83,7 @@ export async function getDailyMetrics(date: string) {
       platform: 'google' as const,
       spend: 0,
       roas: 0,
+      paid_reach: 0,
     };
   }
 }

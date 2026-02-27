@@ -6,6 +6,7 @@ interface MetaInsightsResponse {
     date_start: string;
     date_stop: string;
     spend: string;
+    reach?: string;
     purchase_roas?: Array<{ value: string }>;
     website_purchase_roas?: Array<{ value: string }>;
   }>;
@@ -26,7 +27,7 @@ async function metaFetch<T>(endpoint: string): Promise<T> {
 
 export async function getDailyMetrics(date: string) {
   const data = await metaFetch<MetaInsightsResponse>(
-    `${META_AD_ACCOUNT_ID}/insights?fields=spend,purchase_roas,website_purchase_roas&time_range={"since":"${date}","until":"${date}"}&level=account`
+    `${META_AD_ACCOUNT_ID}/insights?fields=spend,reach,purchase_roas,website_purchase_roas&time_range={"since":"${date}","until":"${date}"}&level=account`
   );
 
   if (data.data.length === 0) {
@@ -35,11 +36,13 @@ export async function getDailyMetrics(date: string) {
       platform: 'meta' as const,
       spend: 0,
       roas: 0,
+      paid_reach: 0,
     };
   }
 
   const insight = data.data[0];
   const spend = parseFloat(insight.spend) || 0;
+  const paid_reach = parseInt(insight.reach || '0', 10) || 0;
 
   // ROAS can be in different fields depending on setup
   let roas = 0;
@@ -54,5 +57,6 @@ export async function getDailyMetrics(date: string) {
     platform: 'meta' as const,
     spend,
     roas,
+    paid_reach,
   };
 }

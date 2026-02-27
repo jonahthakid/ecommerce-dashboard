@@ -8,11 +8,13 @@ interface PlatformMetrics {
   platform: string;
   spend: number;
   roas: number;
+  paid_reach: number;
 }
 
 interface AdSpendSectionProps {
   platforms: PlatformMetrics[];
   totalSpend: number;
+  totalReach: number;
   blendedRoas: number;
   newCustomerOrders: number;
   loading: boolean;
@@ -41,7 +43,11 @@ const platformColors: Record<string, string> = {
   snapchat: 'bg-yellow-500',
 };
 
-export function AdSpendSection({ platforms, totalSpend, blendedRoas, newCustomerOrders, loading }: AdSpendSectionProps) {
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat('en-US').format(value);
+}
+
+export function AdSpendSection({ platforms, totalSpend, totalReach, blendedRoas, newCustomerOrders, loading }: AdSpendSectionProps) {
   const costPerNewCustomer = newCustomerOrders > 0 ? totalSpend / newCustomerOrders : 0;
 
   if (loading) {
@@ -68,7 +74,7 @@ export function AdSpendSection({ platforms, totalSpend, blendedRoas, newCustomer
       </div>
 
       {/* Combined totals */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-4">
         <MetricCard
           title="Total Ad Spend"
           value={formatCurrency(totalSpend)}
@@ -78,6 +84,11 @@ export function AdSpendSection({ platforms, totalSpend, blendedRoas, newCustomer
           title="Blended ROAS"
           value={`${blendedRoas.toFixed(2)}x`}
           subtitle="Revenue / Ad Spend"
+        />
+        <MetricCard
+          title="Total Reach"
+          value={formatNumber(totalReach)}
+          subtitle="Paid reach"
         />
         <MetricCard
           title="Cost per New Customer"
@@ -109,6 +120,12 @@ export function AdSpendSection({ platforms, totalSpend, blendedRoas, newCustomer
                   <p className="text-xs font-mono font-bold text-[#1e293b]/60 uppercase tracking-wider">ROAS</p>
                   <p className="text-lg font-mono font-bold text-[#ef4444]">
                     {platform ? `${platform.roas.toFixed(2)}x` : '0.00x'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-mono font-bold text-[#1e293b]/60 uppercase tracking-wider">Reach</p>
+                  <p className="text-lg font-mono font-bold text-[#1e293b]/80">
+                    {platform ? formatNumber(platform.paid_reach) : '0'}
                   </p>
                 </div>
               </div>

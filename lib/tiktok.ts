@@ -12,6 +12,7 @@ interface TikTokReportResponse {
       metrics: {
         spend: string;
         complete_payment_roas?: string;
+        reach?: string;
       };
     }>;
   };
@@ -24,7 +25,7 @@ export async function getDailyMetrics(date: string) {
       report_type: 'BASIC',
       dimensions: JSON.stringify(['stat_time_day']),
       data_level: 'AUCTION_ADVERTISER',
-      metrics: JSON.stringify(['spend', 'complete_payment_roas']),
+      metrics: JSON.stringify(['spend', 'complete_payment_roas', 'reach']),
       start_date: date,
       end_date: date,
     });
@@ -55,18 +56,21 @@ export async function getDailyMetrics(date: string) {
         platform: 'tiktok' as const,
         spend: 0,
         roas: 0,
+        paid_reach: 0,
       };
     }
 
     const metrics = data.data.list[0].metrics;
     const spend = parseFloat(metrics.spend) || 0;
     const roas = parseFloat(metrics.complete_payment_roas || '0') || 0;
+    const paid_reach = parseInt(metrics.reach || '0', 10) || 0;
 
     return {
       date,
       platform: 'tiktok' as const,
       spend,
       roas,
+      paid_reach,
     };
   } catch (error) {
     console.error('TikTok API error:', error);
@@ -75,6 +79,7 @@ export async function getDailyMetrics(date: string) {
       platform: 'tiktok' as const,
       spend: 0,
       roas: 0,
+      paid_reach: 0,
     };
   }
 }

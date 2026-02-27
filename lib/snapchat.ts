@@ -50,6 +50,7 @@ interface SnapchatStatsResponse {
     total_stat: {
       stats: {
         spend?: number;
+        impressions?: number;
       };
     };
   }>;
@@ -105,17 +106,20 @@ export async function getDailyMetrics(date: string) {
 
     // Use TOTAL granularity which is more reliable
     const data = await snapchatFetch<SnapchatStatsResponse>(
-      `adaccounts/${SNAPCHAT_AD_ACCOUNT_ID}/stats?granularity=TOTAL&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&fields=spend`
+      `adaccounts/${SNAPCHAT_AD_ACCOUNT_ID}/stats?granularity=TOTAL&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&fields=spend,impressions`
     );
 
     // Handle TOTAL response format
     if (data.total_stats && data.total_stats.length > 0) {
-      const spend = (data.total_stats[0].total_stat.stats.spend || 0) / 1_000_000;
+      const stats = data.total_stats[0].total_stat.stats;
+      const spend = (stats.spend || 0) / 1_000_000;
+      const paid_reach = stats.impressions || 0;
       return {
         date,
         platform: 'snapchat' as const,
         spend,
         roas: 0,
+        paid_reach,
       };
     }
 
@@ -124,6 +128,7 @@ export async function getDailyMetrics(date: string) {
       platform: 'snapchat' as const,
       spend: 0,
       roas: 0,
+      paid_reach: 0,
     };
   } catch (error) {
     console.error('Snapchat API error:', error);
@@ -132,6 +137,7 @@ export async function getDailyMetrics(date: string) {
       platform: 'snapchat' as const,
       spend: 0,
       roas: 0,
+      paid_reach: 0,
     };
   }
 }

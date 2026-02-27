@@ -28,6 +28,7 @@ export interface AdMetrics {
   platform: 'meta' | 'google' | 'tiktok' | 'snapchat';
   spend: number;
   roas: number;
+  paid_reach: number;
   synced_at: string;
 }
 
@@ -93,6 +94,7 @@ export async function initDatabase() {
       platform VARCHAR(50) NOT NULL,
       spend DECIMAL(12,2) DEFAULT 0,
       roas DECIMAL(8,2) DEFAULT 0,
+      paid_reach INTEGER DEFAULT 0,
       synced_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(date, platform)
     )
@@ -187,11 +189,12 @@ export async function getTopProducts(startDate: string, endDate: string) {
 // Ad metrics
 export async function upsertAdMetrics(data: Omit<AdMetrics, 'id' | 'synced_at'>) {
   return sql`
-    INSERT INTO ad_metrics (date, platform, spend, roas)
-    VALUES (${data.date}, ${data.platform}, ${data.spend}, ${data.roas})
+    INSERT INTO ad_metrics (date, platform, spend, roas, paid_reach)
+    VALUES (${data.date}, ${data.platform}, ${data.spend}, ${data.roas}, ${data.paid_reach})
     ON CONFLICT (date, platform) DO UPDATE SET
       spend = EXCLUDED.spend,
       roas = EXCLUDED.roas,
+      paid_reach = EXCLUDED.paid_reach,
       synced_at = NOW()
   `;
 }
@@ -254,12 +257,22 @@ export async function getDailySignupsRange(startDate: string, endDate: string) {
 
 // Aggregated queries
 export async function getAggregatedMetrics(startDate: string, endDate: string) {
-  const [shopify, ads, topProducts, klaviyo, dailySignups] = await Promise.all([
+  // Calculate YoY comparison dates (same period, one year ago)
+  const yoyStartDate = new Date(startDate);
+  yoyStartDate.setFullYear(yoyStartDate.getFullYear() - 1);
+  const yoyEndDate = new Date(endDate);
+  yoyEndDate.setFullYear(yoyEndDate.getFullYear() - 1);
+  const yoyStart = yoyStartDate.toISOString().split('T')[0];
+  const yoyEnd = yoyEndDate.toISOString().split('T')[0];
+
+  const [shopify, ads, topProducts, klaviyo, dailySignups, yoyKlaviyo, yoySignups] = await Promise.all([
     getShopifyMetrics(startDate, endDate),
     getAdMetrics(startDate, endDate),
     getTopProducts(startDate, endDate),
     getKlaviyoMetrics(startDate, endDate),
     getDailySignupsRange(startDate, endDate),
+    getKlaviyoMetrics(yoyStart, yoyEnd),
+    getDailySignupsRange(yoyStart, yoyEnd),
   ]);
 
   // Calculate totals
@@ -281,22 +294,25 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
   // Group ad metrics by platform
   const adsByPlatform = ads.reduce((acc, ad) => {
     if (!acc[ad.platform]) {
-      acc[ad.platform] = { spend: 0, roas: 0, count: 0 };
+      acc[ad.platform] = { spend: 0, roas: 0, paid_reach: 0, count: 0 };
     }
     acc[ad.platform].spend += Number(ad.spend);
     acc[ad.platform].roas += Number(ad.roas);
+    acc[ad.platform].paid_reach += Number(ad.paid_reach || 0);
     acc[ad.platform].count += 1;
     return acc;
-  }, {} as Record<string, { spend: number; roas: number; count: number }>);
+  }, {} as Record<string, { spend: number; roas: number; paid_reach: number; count: number }>);
 
   // Calculate average ROAS per platform
   const adSummary = Object.entries(adsByPlatform).map(([platform, data]) => ({
     platform,
     spend: data.spend,
     roas: data.count > 0 ? data.roas / data.count : 0,
+    paid_reach: data.paid_reach,
   }));
 
   const totalAdSpend = adSummary.reduce((sum, p) => sum + p.spend, 0);
+  const totalReach = adSummary.reduce((sum, p) => sum + p.paid_reach, 0);
   const totalRevenue = shopifyTotals.revenue;
   const blendedRoas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
 
@@ -316,6 +332,19 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
   // Calculate email signups totals
   const totalSignups = dailySignups.reduce((sum, day) => sum + day.unique_signups, 0);
 
+  // YoY calculations
+  const yoyLatestKlaviyo = yoyKlaviyo[0];
+  const yoySubscriberCount = yoyLatestKlaviyo?.subscriber_count || 0;
+  const yoyTotalSignups = yoySignups.reduce((sum, day) => sum + day.unique_signups, 0);
+
+  const currentSubscriberCount = latestKlaviyo?.subscriber_count || 0;
+  const subscriberYoy = yoySubscriberCount > 0
+    ? ((currentSubscriberCount - yoySubscriberCount) / yoySubscriberCount) * 100
+    : null;
+  const signupsYoy = yoyTotalSignups > 0
+    ? ((totalSignups - yoyTotalSignups) / yoyTotalSignups) * 100
+    : null;
+
   return {
     shopify: {
       ...shopifyTotals,
@@ -325,6 +354,7 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
     ads: {
       platforms: adSummary,
       totalSpend: totalAdSpend,
+      totalReach,
       blendedRoas,
       daily: ads,
     },
@@ -345,7 +375,9 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
           date: d.date,
           signups: d.unique_signups,
         })),
+        yoy: signupsYoy,
       },
+      subscriber_yoy: subscriberYoy,
     },
   };
 }
