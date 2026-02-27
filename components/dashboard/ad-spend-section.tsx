@@ -11,12 +11,19 @@ interface PlatformMetrics {
   paid_reach: number;
 }
 
+interface AdsYoy {
+  totalSpend: number | null;
+  blendedRoas: number | null;
+  totalReach: number | null;
+}
+
 interface AdSpendSectionProps {
   platforms: PlatformMetrics[];
   totalSpend: number;
   totalReach: number;
   blendedRoas: number;
   newCustomerOrders: number;
+  yoy?: AdsYoy;
   loading: boolean;
 }
 
@@ -47,7 +54,13 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
-export function AdSpendSection({ platforms, totalSpend, totalReach, blendedRoas, newCustomerOrders, loading }: AdSpendSectionProps) {
+function formatYoy(yoy: number | null | undefined): string | undefined {
+  if (yoy == null) return undefined;
+  const sign = yoy >= 0 ? '+' : '';
+  return `${sign}${yoy.toFixed(1)}% YoY`;
+}
+
+export function AdSpendSection({ platforms, totalSpend, totalReach, blendedRoas, newCustomerOrders, yoy, loading }: AdSpendSectionProps) {
   const costPerNewCustomer = newCustomerOrders > 0 ? totalSpend / newCustomerOrders : 0;
 
   if (loading) {
@@ -79,16 +92,22 @@ export function AdSpendSection({ platforms, totalSpend, totalReach, blendedRoas,
           title="Total Ad Spend"
           value={formatCurrency(totalSpend)}
           subtitle="All Platforms"
+          change={formatYoy(yoy?.totalSpend)}
+          isPositive={yoy?.totalSpend != null ? yoy.totalSpend <= 0 : true}
         />
         <MetricCard
           title="Blended ROAS"
           value={`${blendedRoas.toFixed(2)}x`}
           subtitle="Revenue / Ad Spend"
+          change={formatYoy(yoy?.blendedRoas)}
+          isPositive={yoy?.blendedRoas != null ? yoy.blendedRoas >= 0 : true}
         />
         <MetricCard
           title="Total Reach"
           value={formatNumber(totalReach)}
           subtitle="Paid reach"
+          change={formatYoy(yoy?.totalReach)}
+          isPositive={yoy?.totalReach != null ? yoy.totalReach >= 0 : true}
         />
         <MetricCard
           title="Cost per New Customer"

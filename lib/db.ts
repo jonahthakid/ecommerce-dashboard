@@ -265,12 +265,14 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
   const yoyStart = yoyStartDate.toISOString().split('T')[0];
   const yoyEnd = yoyEndDate.toISOString().split('T')[0];
 
-  const [shopify, ads, topProducts, klaviyo, dailySignups, yoyKlaviyo, yoySignups] = await Promise.all([
+  const [shopify, ads, topProducts, klaviyo, dailySignups, yoyShopify, yoyAds, yoyKlaviyo, yoySignups] = await Promise.all([
     getShopifyMetrics(startDate, endDate),
     getAdMetrics(startDate, endDate),
     getTopProducts(startDate, endDate),
     getKlaviyoMetrics(startDate, endDate),
     getDailySignupsRange(startDate, endDate),
+    getShopifyMetrics(yoyStart, yoyEnd),
+    getAdMetrics(yoyStart, yoyEnd),
     getKlaviyoMetrics(yoyStart, yoyEnd),
     getDailySignupsRange(yoyStart, yoyEnd),
   ]);
@@ -332,24 +334,61 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
   // Calculate email signups totals
   const totalSignups = dailySignups.reduce((sum, day) => sum + day.unique_signups, 0);
 
-  // YoY calculations
+  // YoY calculations helper
+  function calcYoy(current: number, previous: number): number | null {
+    return previous > 0 ? ((current - previous) / previous) * 100 : null;
+  }
+
+  // Shopify YoY
+  const yoyShopifyTotals = yoyShopify.reduce(
+    (acc, day) => ({
+      traffic: acc.traffic + day.traffic,
+      orders: acc.orders + day.orders,
+      new_customer_orders: acc.new_customer_orders + day.new_customer_orders,
+      revenue: acc.revenue + Number(day.revenue),
+      contribution_margin: acc.contribution_margin + Number(day.contribution_margin || 0),
+    }),
+    { traffic: 0, orders: 0, new_customer_orders: 0, revenue: 0, contribution_margin: 0 }
+  );
+  const yoyAvgConversionRate = yoyShopify.length > 0
+    ? yoyShopify.reduce((sum, day) => sum + Number(day.conversion_rate), 0) / yoyShopify.length
+    : 0;
+
+  const shopifyYoy = {
+    revenue: calcYoy(shopifyTotals.revenue, yoyShopifyTotals.revenue),
+    contribution_margin: calcYoy(shopifyTotals.contribution_margin, yoyShopifyTotals.contribution_margin),
+    orders: calcYoy(shopifyTotals.orders, yoyShopifyTotals.orders),
+    new_customer_orders: calcYoy(shopifyTotals.new_customer_orders, yoyShopifyTotals.new_customer_orders),
+    traffic: calcYoy(shopifyTotals.traffic, yoyShopifyTotals.traffic),
+    conversion_rate: calcYoy(avgConversionRate, yoyAvgConversionRate),
+  };
+
+  // Ads YoY
+  const yoyTotalAdSpend = yoyAds.reduce((sum, ad) => sum + Number(ad.spend), 0);
+  const yoyTotalReach = yoyAds.reduce((sum, ad) => sum + Number(ad.paid_reach || 0), 0);
+  const yoyBlendedRoas = yoyTotalAdSpend > 0 ? yoyShopifyTotals.revenue / yoyTotalAdSpend : 0;
+
+  const adsYoy = {
+    totalSpend: calcYoy(totalAdSpend, yoyTotalAdSpend),
+    blendedRoas: calcYoy(blendedRoas, yoyBlendedRoas),
+    totalReach: calcYoy(totalReach, yoyTotalReach),
+  };
+
+  // Klaviyo YoY
   const yoyLatestKlaviyo = yoyKlaviyo[0];
   const yoySubscriberCount = yoyLatestKlaviyo?.subscriber_count || 0;
   const yoyTotalSignups = yoySignups.reduce((sum, day) => sum + day.unique_signups, 0);
 
   const currentSubscriberCount = latestKlaviyo?.subscriber_count || 0;
-  const subscriberYoy = yoySubscriberCount > 0
-    ? ((currentSubscriberCount - yoySubscriberCount) / yoySubscriberCount) * 100
-    : null;
-  const signupsYoy = yoyTotalSignups > 0
-    ? ((totalSignups - yoyTotalSignups) / yoyTotalSignups) * 100
-    : null;
+  const subscriberYoy = calcYoy(currentSubscriberCount, yoySubscriberCount);
+  const signupsYoy = calcYoy(totalSignups, yoyTotalSignups);
 
   return {
     shopify: {
       ...shopifyTotals,
       conversion_rate: avgConversionRate,
       daily: shopify,
+      yoy: shopifyYoy,
     },
     ads: {
       platforms: adSummary,
@@ -357,6 +396,7 @@ export async function getAggregatedMetrics(startDate: string, endDate: string) {
       totalReach,
       blendedRoas,
       daily: ads,
+      yoy: adsYoy,
     },
     topProducts,
     klaviyo: {

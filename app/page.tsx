@@ -28,6 +28,14 @@ interface Metrics {
       orders: number;
       revenue: number;
     }>;
+    yoy?: {
+      revenue: number | null;
+      contribution_margin: number | null;
+      orders: number | null;
+      new_customer_orders: number | null;
+      traffic: number | null;
+      conversion_rate: number | null;
+    };
   };
   ads: {
     platforms: Array<{
@@ -45,6 +53,11 @@ interface Metrics {
       spend: number;
       roas: number;
     }>;
+    yoy?: {
+      totalSpend: number | null;
+      blendedRoas: number | null;
+      totalReach: number | null;
+    };
   };
   topProducts: Array<{
     product_id: string;
@@ -219,6 +232,7 @@ export default function Dashboard() {
           totalReach={metrics?.ads.totalReach || 0}
           blendedRoas={metrics?.ads.blendedRoas || 0}
           newCustomerOrders={metrics?.shopify.new_customer_orders || 0}
+          yoy={metrics?.ads.yoy}
           loading={loading}
         />
 
