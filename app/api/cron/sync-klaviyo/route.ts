@@ -45,13 +45,13 @@ export async function GET(request: NextRequest) {
     const clickRate = campaignMetrics.sent > 0 ? (campaignMetrics.clicked / campaignMetrics.sent) * 100 : 0;
 
     // Get last known subscriber count from DB instead of slow API pagination
+    // Look back up to 2 years to find a non-zero count (includes backfill data)
     const existingMetrics = await getDbKlaviyoMetrics(
-      format(subDays(new Date(), 30), 'yyyy-MM-dd'),
+      format(subDays(new Date(), 730), 'yyyy-MM-dd'),
       yesterday
     );
-    const lastKnownCount = existingMetrics.length > 0
-      ? existingMetrics[0].subscriber_count
-      : 30556; // Fallback from initial backfill
+    const nonZeroMetric = existingMetrics.find(m => m.subscriber_count > 0);
+    const lastKnownCount = nonZeroMetric?.subscriber_count || 30556;
 
     // Store the metrics
     await upsertKlaviyoMetrics({
