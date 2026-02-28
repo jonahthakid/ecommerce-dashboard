@@ -437,6 +437,7 @@ export async function getDailyMetrics(date: string) {
   const productSales: Record<string, { quantity: number; title: string }> = {};
   for (const order of orders) {
     for (const item of order.line_items) {
+      if (!item.product_id) continue;
       const key = item.product_id.toString();
       if (!productSales[key]) {
         productSales[key] = { quantity: 0, title: item.title };
